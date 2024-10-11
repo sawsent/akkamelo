@@ -1,11 +1,11 @@
-package com.akkamelo.actor.domain.state
+package com.akkamelo.api.actor.client.domain.state
 
-import com.akkamelo.actor.domain.exception.InvalidTransactionException
-
+import com.akkamelo.api.actor.client.exception.InvalidTransactionException
 import java.time.LocalDateTime
 
 
 object Client {
+  def initialWithId(id: Int): Client = Client.initial.copy(id = id)
   val initial: Client = Client(0, List.empty[Transaction], 0)
 }
 

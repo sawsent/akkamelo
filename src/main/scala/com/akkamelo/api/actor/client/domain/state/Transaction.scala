@@ -1,6 +1,6 @@
-package com.akkamelo.actor.domain.state
+package com.akkamelo.api.actor.client.domain.state
 
-import com.akkamelo.actor.domain.exception.{InvalidTransactionException, TransactionConversionException}
+import com.akkamelo.api.actor.client.exception.{InvalidTransactionException, TransactionConversionException}
 
 import java.time.LocalDateTime
 
@@ -33,6 +33,11 @@ class Transaction(val value: Int, val description: String, val transactionType: 
   private def toDebit: Debit = transactionType match {
     case TransactionType.DEBIT => new Debit(value, description, timestamp)
     case _ => throw TransactionConversionException("Can't convert credit transaction to debit transaction.")
+  }
+
+  override def equals(obj: Any): Boolean = obj match {
+    case t: Transaction => t.value == value && t.description == description && t.transactionType == transactionType
+    case _ => false
   }
 }
 

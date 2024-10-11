@@ -1,4 +1,4 @@
-package com.akkamelo.actor.domain.exception
+package com.akkamelo.api.actor.client.exception
 
 case class ClientNotFoundException(message: String) extends RuntimeException(message)
 

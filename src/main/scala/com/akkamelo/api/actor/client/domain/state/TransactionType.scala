@@ -1,4 +1,4 @@
-package com.akkamelo.actor.domain.state
+package com.akkamelo.api.actor.client.domain.state
 
 object TransactionType {
   case object CreditTransaction extends TransactionType
