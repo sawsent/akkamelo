@@ -7,7 +7,7 @@ import com.akkamelo.api.actor.greet.GreeterActor.SayHello
 object Boot extends App {
   val system: ActorSystem = ActorSystem("no-conf")
 
-  val greeter = system.actorOf(GreeterActor.props("Hello World"), "greeter")
+  val greeter = system.actorOf(GreeterActor.props, "greeter")
   greeter ! SayHello
 
 }
