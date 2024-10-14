@@ -1,16 +1,17 @@
 package com.akkamelo.api.actor.client.handler
 
-import com.akkamelo.api.actor.client.ClientActor.ClientTransactionAddCommand
+import com.akkamelo.api.actor.client.ClientActor.ClientAddTransactionCommand
 import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, Transaction, TransactionType}
 import com.akkamelo.api.actor.client.exception.ClientNotFoundException
 
-object ClientTransactionAddHandler {
-  type Handler = PartialFunction[(Client, ClientTransactionAddCommand), Client]
+object ClientAddTransactionHandler {
+  type Handler = PartialFunction[(Client, ClientAddTransactionCommand), Client]
+
   def handle(): Handler = {
-    case (client, ClientTransactionAddCommand(clientId, value, TransactionType.CREDIT, description)) =>
+    case (client, ClientAddTransactionCommand(clientId, value, TransactionType.CREDIT, description)) =>
       validateClientId(clientId)
       addTransactionToClient(client, Credit(value, description))
-    case (client, ClientTransactionAddCommand(clientId, value, TransactionType.DEBIT, description)) =>
+    case (client, ClientAddTransactionCommand(clientId, value, TransactionType.DEBIT, description)) =>
       validateClientId(clientId)
       addTransactionToClient(client, Debit(value, description))
   }
