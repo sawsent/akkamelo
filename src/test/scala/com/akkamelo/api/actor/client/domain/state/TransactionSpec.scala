@@ -1,4 +1,4 @@
-package com.akkamelo.actor.client.domain.state
+package com.akkamelo.api.actor.client.domain.state
 
 import com.akkamelo.api.actor.client.domain.state.{Credit, Debit, Transaction}
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException

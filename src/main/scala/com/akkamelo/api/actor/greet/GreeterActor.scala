@@ -22,7 +22,7 @@ class GreeterActor extends Actor with ActorLogging {
 
   override def receive: Receive = configurable.orElse {
     case any: Any =>
-      log.warning(s"Received $any before being configured.")
+      log.warning(s"Received ${any.toString} before being configured.")
   }
 
   def configured(greeting: String): Receive = configurable.orElse {
