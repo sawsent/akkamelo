@@ -1,4 +1,4 @@
-package com.akkamelo.actor.client.handler
+package com.akkamelo.api.actor.client.handler
 
 import com.akkamelo.api.actor.client.ClientActor.ClientAddTransactionCommand
 import com.akkamelo.api.actor.client.domain.state.{Client, Credit, TransactionType}
