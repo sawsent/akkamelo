@@ -28,6 +28,11 @@
             <version>2.6.20</version>
         </dependency>
         <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http_2.13</artifactId>
+            <version>10.2.7</version>
+        </dependency>
+        <dependency>
             <groupId>com.typesafe</groupId>
             <artifactId>config</artifactId>
             <version>1.4.3</version>
