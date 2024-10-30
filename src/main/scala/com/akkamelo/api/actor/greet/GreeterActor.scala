@@ -16,7 +16,6 @@ class GreeterActor extends Actor with ActorLogging {
 
   def configurable: Receive = {
     case Configure(greeting) =>
-      sender() ! ConfigurationSuccess(greeting)
       context.become(configured(greeting))
   }
 
