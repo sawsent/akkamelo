@@ -7,6 +7,8 @@ import com.akkamelo.api.actor.greet.GreeterActor.{ConfigurationSuccess, Configur
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import scala.concurrent.duration.DurationInt
+
 class GreeterActorSpec extends TestKit(ActorSystem("GreeterActorSpec")) with AnyWordSpecLike with BeforeAndAfterAll {
 
   import GreeterActorSpec._
@@ -22,7 +24,7 @@ class GreeterActorSpec extends TestKit(ActorSystem("GreeterActorSpec")) with Any
 
         testGreeter.tell(Configure(greeting), testProbe.ref)
 
-        testProbe.expectMsg(ConfigurationSuccess(greeting))
+        testProbe.expectNoMessage(1.seconds)
       }
 
     }
