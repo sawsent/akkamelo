@@ -1,6 +1,6 @@
 package com.akkamelo.api.endpoint
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
@@ -12,7 +12,7 @@ import spray.json.RootJsonFormat
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class Server(host: String, port: Int)(implicit system: ActorSystem, ec: ExecutionContext) extends BaseLogging {
+class Server(host: String, port: Int, clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext) extends BaseLogging {
 
   implicit val transactionRequestFormat: RootJsonFormat[TransactionRequestDTO] = jsonFormat3(TransactionRequestDTO)
 

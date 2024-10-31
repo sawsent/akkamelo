@@ -1,6 +1,7 @@
 package com.akkamelo.api
 
 import akka.actor.ActorSystem
+import com.akkamelo.api.actor.client.resolver.ClientActorResolver
 import com.akkamelo.api.actor.greet.GreeterActor
 import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 import com.akkamelo.api.endpoint.Server
@@ -16,7 +17,12 @@ object Boot extends App {
   greeter ! Configure(config.getString("boot.message"))
   greeter ! SayHello
 
-  val server: Server = new Server("localhost", 8080)
+  val resolver = system.actorOf(ClientActorResolver.props, "client-actor-resolver")
+  1 to 5 foreach { id =>
+    resolver ! ClientActorResolver.RegisterClientActor(id)
+  }
+
+  val server: Server = new Server("localhost", 8080, resolver)
   val closeable = server.start()
 
   scala.io.StdIn.readLine()
