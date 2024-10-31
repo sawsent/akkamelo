@@ -27,7 +27,7 @@ class ClientActor(val clientId: Int) extends Actor with ActorLogging {
 
   override def receive: Receive = handleCommands(ClientState(Client.initialWithId(clientId)))
     .orElse {
-    case _ => log.info(s"ClientActor received a message: ${_}")
+    case _ => log.warning(s"ClientActor received a message: ")
   }
 
   def handleCommands(state: ClientActorState): Receive = {
