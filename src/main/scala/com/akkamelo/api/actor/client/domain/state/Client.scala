@@ -21,12 +21,10 @@ case class Client(id: Int, transactions: List[Transaction], limit: Int, balanceS
     } else {
       copy(transactions = transaction +: transactions)
     }
-    // this.copy(id, transaction +: transactions, limit)
   }
 
   def getStatement: Statement = {
     val balanceInformation = BalanceInformation(balance, limit, LocalDateTime.now())
-    print(transactions.length)
     val lastTransactions = transactions.slice(0, 10)
     Statement(balanceInformation, lastTransactions)
   }
