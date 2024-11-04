@@ -4,9 +4,9 @@ import com.akkamelo.api.endpoint.dto._
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsNull, JsValue, RootJsonFormat, deserializationError, enrichAny, serializationError}
 
-trait CustomMarshalling {
+object CustomMarshalling {
 
-  implicit protected val transactionRequestFormat: RootJsonFormat[TransactionRequestDTO] = jsonFormat3(TransactionRequestDTO)
+  implicit val transactionRequestFormat: RootJsonFormat[TransactionRequestDTO] = jsonFormat3(TransactionRequestDTO)
 
   implicit val balanceFormat: RootJsonFormat[BalanceDTO] = jsonFormat3(BalanceDTO)
   implicit val transactionFormat: RootJsonFormat[TransactionDTO] = jsonFormat4(TransactionDTO)
