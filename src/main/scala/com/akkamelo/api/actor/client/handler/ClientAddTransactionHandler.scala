@@ -8,15 +8,16 @@ object ClientAddTransactionHandler {
   type Handler = PartialFunction[(Client, ClientAddTransactionCommand), Client]
 
   def handle(): Handler = {
-    case (client, ClientAddTransactionCommand(clientId, value, TransactionType.CREDIT, description)) =>
-      validateClientId(clientId)
+    case (client, ClientAddTransactionCommand(value, TransactionType.CREDIT, description)) =>
+      validateClientId(client.id)
       addTransactionToClient(client, Credit(value, description))
-    case (client, ClientAddTransactionCommand(clientId, value, TransactionType.DEBIT, description)) =>
-      validateClientId(clientId)
+    case (client, ClientAddTransactionCommand(value, TransactionType.DEBIT, description)) =>
+      validateClientId(client.id)
       addTransactionToClient(client, Debit(value, description))
   }
 
   def addTransactionToClient(client: Client, transaction: Transaction): Client = client add transaction
+
   def validateClientId(id: Int): Unit = if (id < 1 || id > 5) throw ClientNotFoundException("Client is outside the App scope.")
 
 }

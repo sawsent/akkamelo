@@ -24,7 +24,7 @@ case class Client(id: Int, transactions: List[Transaction], limit: Int) {
     Statement(balanceInformation, lastTransactions)
   }
 
-  private def balance: Int = {
+  def balance: Int = {
     transactions.foldRight(0)((t: Transaction, acc: Int) => t match {
       case Credit(value, _, _) => acc + value
       case Debit(value, _, _) => acc - value
