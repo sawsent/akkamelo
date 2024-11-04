@@ -1,13 +1,13 @@
 package com.akkamelo.api.endpoint.dto
 
-trait ResponseDTO
+import akka.http.scaladsl.model.StatusCode
 
-case object ClientNotFoundResponseDTO extends ResponseDTO {
-  override def toString: String = "Client not found"
-}
+case class ResponseDTO(code: StatusCode, payload: Option[ResponseDTOPayload])
 
-case class StatementResponseDTO(saldo: BalanceDTO, ultimas_transacoes: List[TransactionDTO]) extends ResponseDTO
-case class TransactionResponseDTO(limite: Int, saldo: Int) extends ResponseDTO
+trait ResponseDTOPayload
+
+case class StatementResponseDTOPayload(saldo: BalanceDTO, ultimas_transacoes: List[TransactionDTO]) extends ResponseDTOPayload
+case class TransactionResponseDTOPayload(limite: Int, saldo: Int) extends ResponseDTOPayload
 
 case class BalanceDTO(total: Int, data_extrato: String, limite: Int)
 case class TransactionDTO(valor: Int, tipo: String, descricao: String, realizada_em: String)

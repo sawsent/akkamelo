@@ -11,7 +11,6 @@ object ClientActor {
   trait ClientActorCommand
   case class ClientAddTransactionCommand(value: Int, transactionType: TransactionType, description: String) extends ClientActorCommand
   case object ClientGetStatementCommand extends ClientActorCommand
-  case object ClientGetBalanceAndLimitCommand extends ClientActorCommand
 
   // EventRegion
   trait ClientActorEvent
