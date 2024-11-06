@@ -6,12 +6,13 @@ import com.akkamelo.api.actor.client.ClientActor.{ClientActorCommand, ClientActo
 import com.akkamelo.api.actor.client.domain.state.Client
 
 object ClientActorSupervisor {
-  case class ResolveClientActor(clientId: Int) // => Option[ActorRef]
   case class ApplyCommand(clientId: Int, command: ClientActorCommand)
 
+  case class ClientActorRegistered(clientId: Int) extends ClientActorResponse
   case class NonExistingClientActor(clientId: Int) extends ClientActorResponse
+  case class ClientActorAlreadyExists(clientId: Int) extends ClientActorResponse
 
-  case class RegisterClientActor(clientId: Int, initialBalance: Int = 0, limit: Int = 0) // => Either[RegistrationSuccess, RegistrationFailure]
+  case class RegisterClientActor(clientId: Int, initialBalance: Int = 0, limit: Int = 0)
 
   def props(getChildName: Int => String): Props = Props(new ClientActorSupervisor(getChildName))
 }
@@ -25,11 +26,9 @@ class ClientActorSupervisor(val getChildName: Int => String) extends Actor with 
         case Some(clientActor) =>
           clientActor.forward(command)
         case None =>
-          sender() ! NonExistingClientActor(clientId)
           log.warning(s"Client Actor with id $clientId does not exist.")
+          sender() ! NonExistingClientActor(clientId)
       }
-    case ResolveClientActor(clientId) =>
-      sender() ! context.child(getChildName(clientId))
     case RegisterClientActor(clientId, initialBalance, limit) =>
       registerClient(clientId, initialBalance, limit)
   }
@@ -37,11 +36,13 @@ class ClientActorSupervisor(val getChildName: Int => String) extends Actor with 
   private def registerClient(clientId: Int, initialBalance: Int, limit: Int): Unit = {
     context.child(getChildName(clientId)) match {
       case Some(_) =>
-        throw new IllegalArgumentException(s"Client with id $clientId already exists.")
+        log.warning(s"Client with id $clientId already exists.")
+        sender() ! ClientActorAlreadyExists(clientId)
       case None =>
         val client = Client.initial.copy(id = clientId, balanceSnapshot = initialBalance, limit = limit)
         val clientActor = context.actorOf(ClientActor.props(client), getChildName(clientId))
         log.info(s"Client Actor $clientId registered. Initial balance: $initialBalance, limit: $limit")
+        sender() ! ClientActorRegistered(clientId)
     }
   }
 }
