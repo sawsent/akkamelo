@@ -10,6 +10,7 @@ import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 import com.akkamelo.api.endpoint.Server
 import com.typesafe.config.ConfigFactory
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.DurationInt
 
 object Boot extends App {
@@ -17,19 +18,25 @@ object Boot extends App {
   implicit val ec = system.dispatcher
 
   val config = ConfigFactory.load()
-  implicit val clientActorResolverTimeout = Timeout(1.second)
+
 
   val greeter = system.actorOf(GreeterActor.props, "greeter")
   greeter ! Configure(config.getString("boot.message"))
   greeter ! SayHello
 
+  implicit val clientActorSupervisorTimeout = Timeout(config.getLong("actor.client.supervisor.timeoutSeconds"), TimeUnit.SECONDS)
+  val clientNamePrefix = config.getString("actor.client.name.prefix")
+  val clientNameSuffix = config.getString("actor.client.name.suffix")
   val clientSupervisor = system.actorOf(ClientActorSupervisor.props(
-    (id: Int) => s"${config.getString("actor.client.name.prefix")}$id${config.getString("actor.client.name.suffix")}"
+    (id: Int) => clientNamePrefix + id.toString + clientNameSuffix
   ), "client-actor-supervisor")
 
-  1 to 5 foreach { id =>
-    clientSupervisor ? RegisterClientActor(id)
-  }
+  val initialClients = config.getObjectList("boot.initialClients")
+
+  initialClients.forEach(client => {
+    val id = client.get("id").unwrapped().asInstanceOf[Int]
+    clientSupervisor ? RegisterClientActor(id, client.get("initialBalance").unwrapped().asInstanceOf[Int], client.get("limit").unwrapped().asInstanceOf[Int])
+  })
 
   val server: Server = Server("localhost", 8080, clientSupervisor).start()
 

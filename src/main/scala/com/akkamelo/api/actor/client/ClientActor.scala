@@ -32,34 +32,38 @@ class ClientActor(val client: Client) extends Actor with ActorLogging {
 
   override def receive: Receive = handleCommands(ClientState(client))
     .orElse {
-    case _ => log.warning(s"ClientActor received a message that it cannot handle.")
+    case _ => log.warning(s"Received a message that it cannot handle.")
   }
 
   def handleCommands(state: ClientActorState): Receive = {
     state match {
       case s: ClientState => handleClientCommands(s)
+      case ClientNoState => handleNoStateCommands()
     }
   }
 
   def handleClientCommands(state: ClientState): Receive = {
-    case ClientAddTransactionCommand(value, transactionType, description) =>
-      log.info(s"ClientActor received a ClientAddTransactionCommand with clientId: ${state.client.id}, value: $value, transactionType: $transactionType, description: $description")
+    case cmd: ClientAddTransactionCommand =>
+      log.info(s"Received a ClientAddTransactionCommand: $cmd")
       try {
-        val updatedClient = ClientAddTransactionHandler.handle()(state.client, ClientAddTransactionCommand(value, transactionType, description))
+        val updatedClient = ClientAddTransactionHandler.handle()(state.client, cmd)
         sender() ! ClientBalanceAndLimitResponse(updatedClient.balance, updatedClient.limit)
         become(handleCommands(ClientState(updatedClient)))
       } catch {
         case e: InvalidTransactionException =>
-          log.error(e.getMessage)
+          log.info(s"Transaction failure: ${e.getMessage}. Replying with ClientActorProcessingFailure.")
           sender() ! ClientActorProcessingFailure
       }
 
     case ClientGetStatementCommand =>
-      log.info(s"ClientActor received a ClientGetStatementCommand with clientId: ${state.client.id}")
+      log.info(s"Received a ClientGetStatementCommand")
       val client = state.client
       val statement = client.getStatement
       sender() ! ClientStatementResponse(statement)
-      log.info(s"Client statement: $statement")
+  }
+
+  def handleNoStateCommands(): Receive = {
+    case _ => log.warning(s"Received a message while without state. Ignoring.")
   }
 
 }
