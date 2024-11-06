@@ -2,7 +2,7 @@ package com.akkamelo.api.actor.client.handler
 
 import com.akkamelo.api.actor.client.ClientActor.ClientAddTransactionCommand
 import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, TransactionType}
-import com.akkamelo.api.actor.client.exception.ClientNotFoundException
+import com.akkamelo.api.actor.client.exception.{ClientNotFoundException, InvalidTransactionException}
 import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should
@@ -36,13 +36,19 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
   }
 
   //Test if the ID is in the scope of this app. See: docs/api-contracts.md ## Initial Client Register
-  "TransactionHandle" should "throws a exception if ID isn't in the app scope (1-5)" in {
+  it should "throws a exception if ID isn't in the app scope (1-5)" in {
 
     val victim = ClientAddTransactionHandler.handle()
     val examples = Table(("description", "client", "transactionCommand", "expectation"),
       (
-        "Initial Client 1",
+        "Initial Client 0",
         Client.initial,
+        ClientAddTransactionCommand(value = 100, transactionType = TransactionType.CREDIT, description = "descricao"),
+        AnyRef
+      ),
+      (
+        "Initial Client 6",
+        Client.initial.copy(id = 6),
         ClientAddTransactionCommand(value = 100, transactionType = TransactionType.CREDIT, description = "descricao"),
         AnyRef
       )
@@ -52,6 +58,11 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
        assertThrows[ClientNotFoundException](victim(client,transactionCommand))
     }
 
+  }
+
+  it should "throw InvalidTransactionException if transaction type is not specified" in {
+    val victim = ClientAddTransactionHandler.handle()
+    assertThrows[InvalidTransactionException](victim(Client.initialWithId(1), ClientAddTransactionCommand(100, TransactionType.NO_TYPE, "Test")))
   }
 
 }
