@@ -1,7 +1,7 @@
 package com.akkamelo.api.actor.client.handler
 
 import com.akkamelo.api.actor.client.ClientActor.ClientAddTransactionCommand
-import com.akkamelo.api.actor.client.domain.state.{Client, Credit, TransactionType}
+import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, TransactionType}
 import com.akkamelo.api.actor.client.exception.ClientNotFoundException
 import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -19,11 +19,16 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
         (
           "Initial Client 1",
           Client.initialWithId(1),
-          ClientAddTransactionCommand(clientId = 1, value = 100, transactionType = TransactionType.CREDIT, description = "descricao"),
+          ClientAddTransactionCommand(value = 100, transactionType = TransactionType.CREDIT, description = "descricao"),
           Client.initialWithId(1).copy(transactions = Client.initial.transactions :+ Credit(100,"descricao"))
-        )
-      // Add more cases
+        ),
+      (
+        "Initial Client 2",
+        Client.initialWithId(2).copy(limit = 10000),
+        ClientAddTransactionCommand(value = 100, transactionType = TransactionType.DEBIT, description = "descricao"),
+        Client.initialWithId(2).copy(limit = 10000, transactions = Client.initial.transactions :+ Debit(100,"descricao"))
       )
+    )
     forAll(examples) { (description, client, transactionCommand, expectation) =>
       victim(client,transactionCommand) should be(expectation)
     }
@@ -38,7 +43,7 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
       (
         "Initial Client 1",
         Client.initial,
-        ClientAddTransactionCommand(clientId = 11, value = 100, transactionType = TransactionType.CREDIT, description = "descricao"),
+        ClientAddTransactionCommand(value = 100, transactionType = TransactionType.CREDIT, description = "descricao"),
         AnyRef
       )
       // Add more cases
