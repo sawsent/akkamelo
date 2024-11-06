@@ -11,14 +11,14 @@ import org.scalatest.wordspec.AnyWordSpecLike
 class GreeterActorSpec extends BaseActorSpec(ActorSystem("GreeterActorSpec")) {
   import GreeterActorSpec._
 
-  "an Unconfigured GreeterActor" should "reply with 'ConfigurationSuccess' when sent a Configure object" in {
+  "an Unconfigured GreeterActor" should "not reply with anything when successfully configured" in {
     val greeterActorRef = resetGreeter(system, "g1")
     val testProbe = TestProbe()
     val greeting = "greeting"
 
     greeterActorRef.tell(Configure(greeting), testProbe.ref)
 
-    testProbe.expectMsg(ConfigurationSuccess(greeting))
+    testProbe.expectNoMessage()
   }
 
   it should "log that it tried to be used before configuration when sent anything else" in {
@@ -74,7 +74,7 @@ object GreeterActorSpec {
   def getConfiguredGreeterActor(system: ActorSystem, name: String, greeting: String, testProbe: TestProbe): ActorRef = {
     val actorRef = resetGreeter(system, name)
     actorRef.tell(Configure(greeting), testProbe.ref)
-    testProbe.expectMsg(ConfigurationSuccess(greeting))
+    testProbe.expectNoMessage()
     actorRef
   }
 }

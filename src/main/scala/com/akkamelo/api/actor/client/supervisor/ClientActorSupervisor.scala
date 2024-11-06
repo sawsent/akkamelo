@@ -11,7 +11,7 @@ object ClientActorSupervisor {
 
   case class NonExistingClientActor(clientId: Int) extends ClientActorResponse
 
-  case class RegisterClientActor(clientId: Int) // => Either[RegistrationSuccess, RegistrationFailure]
+  case class RegisterClientActor(clientId: Int, initialBalance: Int = 0, limit: Int = 0) // => Either[RegistrationSuccess, RegistrationFailure]
 
   def props(getChildName: Int => String): Props = Props(new ClientActorSupervisor(getChildName))
 }
@@ -30,18 +30,18 @@ class ClientActorSupervisor(val getChildName: Int => String) extends Actor with 
       }
     case ResolveClientActor(clientId) =>
       sender() ! context.child(getChildName(clientId))
-    case RegisterClientActor(clientId) =>
-      registerClient(clientId)
+    case RegisterClientActor(clientId, initialBalance, limit) =>
+      registerClient(clientId, initialBalance, limit)
   }
 
-  private def registerClient(clientId: Int): Unit = {
+  private def registerClient(clientId: Int, initialBalance: Int, limit: Int): Unit = {
     context.child(getChildName(clientId)) match {
       case Some(_) =>
         throw new IllegalArgumentException(s"Client with id $clientId already exists.")
       case None =>
-        val client = Client.initialWithId(clientId)
+        val client = Client.initial.copy(id = clientId, balanceSnapshot = initialBalance, limit = limit)
         val clientActor = context.actorOf(ClientActor.props(client), getChildName(clientId))
-        log.info(s"Client Actor with id $clientId registered.")
+        log.info(s"Client Actor $clientId registered. Initial balance: $initialBalance, limit: $limit")
     }
   }
 }
