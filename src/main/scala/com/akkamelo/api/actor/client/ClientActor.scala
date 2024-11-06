@@ -20,7 +20,7 @@ object ClientActor {
   trait ClientActorResponse
   case class ClientStatementResponse(statement: Statement) extends ClientActorResponse
   case class ClientBalanceAndLimitResponse(balance: Int, limit: Int) extends ClientActorResponse
-  case object ClientActorProcessingFailure extends ClientActorResponse
+  case object ClientActorUnprocessableEntity extends ClientActorResponse
 
   def props(client: Client): Props = Props(new ClientActor(client))
 
@@ -51,8 +51,8 @@ class ClientActor(val client: Client) extends Actor with ActorLogging {
         become(handleCommands(ClientState(updatedClient)))
       } catch {
         case e: InvalidTransactionException =>
-          log.info(s"Transaction failure: ${e.getMessage}. Replying with ClientActorProcessingFailure.")
-          sender() ! ClientActorProcessingFailure
+          log.info(s"Transaction failure: ${e.getMessage}")
+          sender() ! ClientActorUnprocessableEntity
       }
 
     case ClientGetStatementCommand =>
