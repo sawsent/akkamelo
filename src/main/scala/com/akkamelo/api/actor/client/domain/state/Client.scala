@@ -16,8 +16,8 @@ case class Client(id: Int, transactions: List[Transaction], limit: Int, balanceS
       case d: Debit => if (balance - d.value < -1 * limit) throw InvalidTransactionException("Can't debit to lower than limit")
     }
     if (transactions.length >= 100) {
-      val currentBalance = balance(transactions.dropRight(10))
-      copy(transactions = transaction +: transactions.take(10), balanceSnapshot = currentBalance)
+      val newBalanceSnapshot = balanceSnapshot + balance(transactions.dropRight(10))
+      copy(transactions = transaction +: transactions.take(10), balanceSnapshot = newBalanceSnapshot)
     } else {
       copy(transactions = transaction +: transactions)
     }
@@ -30,10 +30,10 @@ case class Client(id: Int, transactions: List[Transaction], limit: Int, balanceS
   }
 
   def balance: Int = {
-    balance(transactions)
+    balanceSnapshot + balance(transactions)
   }
 
-  def balance(transactions: List[Transaction]): Int = balanceSnapshot + {
+  def balance(transactions: List[Transaction]): Int = {
     transactions.foldRight(0)((t: Transaction, acc: Int) => t match {
       case Credit(value, _, _) => acc + value
       case Debit(value, _, _) => acc - value
