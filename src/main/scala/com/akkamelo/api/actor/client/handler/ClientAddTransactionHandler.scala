@@ -4,8 +4,8 @@ import com.akkamelo.api.actor.client.ClientActor.ClientAddTransactionCommand
 import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, Transaction, TransactionType}
 import com.akkamelo.api.actor.client.exception.{ClientNotFoundException, InvalidTransactionException, TransactionConversionException}
 
-object ClientAddTransactionHandler {
-  type Handler = PartialFunction[(Client, ClientAddTransactionCommand), Client]
+class ClientAddTransactionHandler {
+  import ClientAddTransactionHandler.Handler
 
   def handle(): Handler = {
     case (client, ClientAddTransactionCommand(value, TransactionType.CREDIT, description)) =>
@@ -22,5 +22,10 @@ object ClientAddTransactionHandler {
 
   def validateClientId(id: Int): Unit = if (id < 1 || id > 5) throw ClientNotFoundException("Client is outside the App scope.")
 
+}
+
+object ClientAddTransactionHandler {
+  type Handler = PartialFunction[(Client, ClientAddTransactionCommand), Client]
+  def apply(): ClientAddTransactionHandler = new ClientAddTransactionHandler()
 }
 

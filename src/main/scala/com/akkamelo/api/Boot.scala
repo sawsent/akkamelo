@@ -11,7 +11,6 @@ import com.akkamelo.api.endpoint.Server
 import com.typesafe.config.ConfigFactory
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.DurationInt
 
 object Boot extends App {
   implicit val system: ActorSystem = ActorSystem("no-conf")
