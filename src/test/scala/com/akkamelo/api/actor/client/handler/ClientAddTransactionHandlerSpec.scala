@@ -14,7 +14,7 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
 
   "TransactionHandle" should "apply transactions to Client state" in {
 
-    val victim = ClientAddTransactionHandler.handle()
+    val victim = ClientAddTransactionHandler().handle()
     val examples = Table(("description", "client", "transactionCommand", "expectation"),
         (
           "Initial Client 1",
@@ -38,7 +38,7 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
   //Test if the ID is in the scope of this app. See: docs/api-contracts.md ## Initial Client Register
   it should "throws a exception if ID isn't in the app scope (1-5)" in {
 
-    val victim = ClientAddTransactionHandler.handle()
+    val victim = ClientAddTransactionHandler().handle()
     val examples = Table(("description", "client", "transactionCommand", "expectation"),
       (
         "Initial Client 0",
@@ -61,7 +61,7 @@ class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenP
   }
 
   it should "throw InvalidTransactionException if transaction type is not specified" in {
-    val victim = ClientAddTransactionHandler.handle()
+    val victim = ClientAddTransactionHandler().handle()
     assertThrows[InvalidTransactionException](victim(Client.initialWithId(1), ClientAddTransactionCommand(100, TransactionType.NO_TYPE, "Test")))
   }
 
