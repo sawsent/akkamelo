@@ -1,4 +1,4 @@
-import ServerSpec.UNIVERSAL_TIME_TIME
+import ServerSpec.{UNIVERSAL_TIME_TIME, mockedBalanceAndLimitResponse, mockedGetResponse}
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -31,10 +31,9 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
   mockClientActorSupervisor.setAutoPilot((sender: ActorRef, msg: Any) => {
     msg match {
       case ApplyCommand(id, ClientAddTransactionCommand(amount, TransactionType.CREDIT, desc)) =>
-        sender ! ClientBalanceAndLimitResponse(100, 0)
+        sender ! mockedBalanceAndLimitResponse
       case ApplyCommand(clientId, ClientGetStatementCommand) =>
-        sender ! ClientStatementResponse(Client.initialWithId(clientId).getStatement.copy(
-          balanceInformation = Client.initialWithId(clientId).getStatement.balanceInformation.copy(timestamp = UNIVERSAL_TIME_TIME)))
+        sender ! mockedGetResponse
       case _ => println(s"Received message: $msg")
     }
     KeepRunning
@@ -47,23 +46,18 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
 
     val transactionRequestJson = transactionRequest.toJson.toString()
 
-    val jsonResponse = Option[ResponseDTOPayload](TransactionResponseDTOPayload(0, 100)).toJson.toString()
+    val responseDTO = ActorResponse2ResponseDTO(mockedBalanceAndLimitResponse)
 
     Post("/clientes/1/transacoes").withEntity(ContentTypes.`application/json`, transactionRequestJson) ~> server.route ~> check {
       mockClientActorSupervisor.expectMsg(ApplyCommand(clientId = 1, ClientAddTransactionCommand(100, TransactionType.CREDIT, "desc")))
       status shouldBe StatusCodes.OK
-      responseAs[String] should include (jsonResponse)
+      responseAs[String] should include (responseDTO.payload.toJson.toString())
     }
   }
 
   "GET /clientes/{clientId}/extrato" should "return a client statement successfully" in {
-
-
-    val responseDTO = ActorResponse2ResponseDTO(ClientStatementResponse(Client.initialWithId(1).getStatement.copy(
-      balanceInformation = Client.initialWithId(1).getStatement.balanceInformation.copy(timestamp = UNIVERSAL_TIME_TIME)
-    )))
+    val responseDTO = ActorResponse2ResponseDTO(mockedGetResponse)
     val responsePayloadJsonString = responseDTO.payload.toJson.toString()
-
 
     Get("/clientes/1/extrato") ~> server.route ~> check {
       mockClientActorSupervisor.expectMsg(ApplyCommand(1, ClientGetStatementCommand))
@@ -78,4 +72,10 @@ object ServerSpec {
   val UNIVERSAL_TIME_TIME: LocalDateTime = ZonedDateTime.parse(UNIVERSAL_TIME, DateTimeFormatter.ISO_DATE_TIME)
     .withZoneSameInstant(ZoneOffset.UTC) // Ensures time is interpreted in UTC
     .toLocalDateTime
+
+  val mockedGetResponse: ClientStatementResponse = ClientStatementResponse(Client.initialWithId(1).getStatement.copy(
+    balanceInformation = Client.initialWithId(1).getStatement.balanceInformation.copy(timestamp = UNIVERSAL_TIME_TIME)
+  ))
+
+  val mockedBalanceAndLimitResponse = ClientBalanceAndLimitResponse(100, 0)
 }
