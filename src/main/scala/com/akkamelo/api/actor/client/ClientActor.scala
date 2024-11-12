@@ -22,11 +22,11 @@ object ClientActor {
   case class ClientBalanceAndLimitResponse(balance: Int, limit: Int) extends ClientActorResponse
   case object ClientActorUnprocessableEntity extends ClientActorResponse
 
-  def props(client: Client): Props = Props(new ClientActor(client))
+  def props(client: Client, addTransactionHandler: ClientAddTransactionHandler): Props = Props(new ClientActor(client, addTransactionHandler))
 
 }
 
-class ClientActor(val client: Client) extends Actor with ActorLogging {
+class ClientActor(val client: Client, val addTransactionHandler: ClientAddTransactionHandler) extends Actor with ActorLogging {
   import ClientActor._
   import context._
 
@@ -46,7 +46,7 @@ class ClientActor(val client: Client) extends Actor with ActorLogging {
     case cmd: ClientAddTransactionCommand =>
       log.info(s"Received a ClientAddTransactionCommand: $cmd")
       try {
-        val updatedClient = ClientAddTransactionHandler.handle()(state.client, cmd)
+        val updatedClient = addTransactionHandler.handle()(state.client, cmd)
         sender() ! ClientBalanceAndLimitResponse(updatedClient.balance, updatedClient.limit)
         become(handleCommands(ClientState(updatedClient)))
       } catch {

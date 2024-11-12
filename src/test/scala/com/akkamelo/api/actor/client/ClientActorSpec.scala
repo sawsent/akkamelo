@@ -4,15 +4,25 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import com.akkamelo.api.actor.client.ClientActor.{ClientActorUnprocessableEntity, ClientAddTransactionCommand, ClientBalanceAndLimitResponse, ClientGetStatementCommand, ClientStatementResponse}
 import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, TransactionType}
+import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
 import com.akkamelo.api.actor.common.BaseActorSpec
+import org.mockito.MockitoSugar.{mock, when}
 
 class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 
   import ClientActorSpec._
 
   "A client Actor" should "reply with the balance and limit after adding a transaction" in {
+    val clientId = 1
+
+    val handlerMock = mock[ClientAddTransactionHandler]
+    when(handlerMock.handle()).thenReturn({
+      case (client, ClientAddTransactionCommand(value, TransactionType.CREDIT, description)) =>
+        Client.initialWithId(clientId).copy(transactions = List(Credit(value, description)))
+    })
+
     val testProbe = TestProbe()
-    val (clientState, clientActorRef) = resetClient(system, 1)
+    val (clientState, clientActorRef) = resetClient(system, clientId, addTransactionHandler = handlerMock)
 
     val transactionValue = 100
     clientActorRef.tell(ClientAddTransactionCommand(transactionValue, TransactionType.CREDIT, "Test"), testProbe.ref)
@@ -20,13 +30,15 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
   }
 
   it should "reply with the statement when requested" in {
+    val clientId = 2
+
     val testProbe = TestProbe()
     testProbe.ignoreMsg({
       case ClientBalanceAndLimitResponse(_, _) => true
       case _ => false
     })
 
-    val (clientState, clientActorRef) = resetClient(system, 2)
+    val (clientState, clientActorRef) = resetClient(system, clientId)
 
     clientActorRef.tell(ClientAddTransactionCommand(100, TransactionType.CREDIT, "Test"), testProbe.ref)
     clientActorRef.tell(ClientAddTransactionCommand(50, TransactionType.DEBIT, "Test"), testProbe.ref)
@@ -67,9 +79,9 @@ object ClientActorSpec {
   val CLIENT_NAME_PREFIX = "client-"
   val CLIENT_NAME_SUFFIX = ""
 
-  def resetClient(system: ActorSystem, clientId: Int, limit: Int = 0): (Client, ActorRef) = {
+  def resetClient(system: ActorSystem, clientId: Int, limit: Int = 0, addTransactionHandler: ClientAddTransactionHandler = ClientAddTransactionHandler()): (Client, ActorRef) = {
     val client = Client.initial.copy(id = clientId, limit = limit)
-    val clientActorRef = system.actorOf(ClientActor.props(client), CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX)
+    val clientActorRef = system.actorOf(ClientActor.props(client, addTransactionHandler), CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX)
     (client, clientActorRef)
   }
 }

@@ -39,5 +39,4 @@ case class Client(id: Int, transactions: List[Transaction], limit: Int, balanceS
       case Debit(value, _, _) => acc - value
     })
   }
-
 }
