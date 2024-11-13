@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.akkamelo.api.actor.client.ClientActor.ClientActorResponse
+import com.akkamelo.api.actor.client.ClientActor.{ClientActorCommand, ClientActorResponse}
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.adapter.endpoint.{ActorResponse2ResponseDTO, Request2ActorCommand}
 import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
@@ -24,25 +24,6 @@ object Server {
 }
 
 trait Server extends BaseLogging {
-  def start(): Server
-  def close(): Unit
-}
-
-class UnstartedServer(val host: String, val port: Int, val clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends Server {
-  def start(): Server = new StartedServer(host, port, clientActorResolver)
-  def close(): Unit = {
-    logger.warn("Attempted to close server that is not started")
-    throw new IllegalStateException("Server is not started")
-  }
-}
-
-class StartedServer(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends Server {
-
-  def start(): Server = {
-    logger.warn("Attempted to start server that is already started")
-    throw new IllegalStateException("Server is already started")
-  }
-
   val route: Route = {
     concat(
       pathPrefix("clientes" / Segment / "transacoes") { clientId =>
@@ -61,8 +42,31 @@ class StartedServer(host: String, port: Int, clientActorSupervisor: ActorRef)(im
       }
     )
   }
+  def handleRequest(clientId: Int, requestDTO: RequestDTO): Route
+  def start(): Server
+  def close(): Unit
+}
 
-  private def handleRequest(clientId: Int, request: RequestDTO): Route = {
+class UnstartedServer(val host: String, val port: Int, val clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends Server {
+  def start(): Server = new StartedServer(Http().newServerAt(host, port).bind(route), clientActorResolver)
+  def close(): Unit = {
+    logger.warn("Attempted to close server that is not started")
+    throw new IllegalStateException("Server is not started")
+  }
+  override def handleRequest(clientId: Int, requestDTO: RequestDTO): Route = {
+    logger.warn("Attempted to handle a request in a server that is not started")
+    throw new IllegalStateException("Server is not started")
+  }
+}
+
+class StartedServer(val bindingFuture: Future[Http.ServerBinding], clientActorSupervisor: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends Server {
+
+  def start(): Server = {
+    logger.warn("Attempted to start server that is already started")
+    throw new IllegalStateException("Server is already started")
+  }
+
+  override def handleRequest(clientId: Int, request: RequestDTO): Route = {
     val command = Request2ActorCommand(request)
     val responseFuture: Future[ClientActorResponse] = (clientActorSupervisor ? ApplyCommand(clientId, command)).mapTo[ClientActorResponse]
 
@@ -75,7 +79,6 @@ class StartedServer(host: String, port: Int, clientActorSupervisor: ActorRef)(im
     }
   }
 
-  private val bindingFuture = Http().newServerAt(host, port).bind(route)
 
   def close(): Unit = {
     bindingFuture.flatMap(_.unbind())

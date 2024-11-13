@@ -14,6 +14,7 @@ object Request2ActorCommand {
     transactionType match {
       case "d" => TransactionType.DEBIT
       case "c" => TransactionType.CREDIT
+      case _ => TransactionType.NO_TYPE
     }
   }
 }
