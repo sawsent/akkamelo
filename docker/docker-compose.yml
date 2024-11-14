@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  scala-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: scala-app
+    ports:
+      - 8080:8080
+    environment:
+      - JAVA_OPTS=-Xmx512m
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '2G'

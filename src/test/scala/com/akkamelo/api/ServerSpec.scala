@@ -1,6 +1,5 @@
 import ServerSpec.{MockedTransaction, mockedBalanceAndLimitResponse, mockedGetResponse, resetProbeAndServer}
-import akka.actor.{ActorRef, ActorSystem}
-import akka.http.scaladsl.Http
+import akka.actor.{ActorRef, ActorSystem, actorRef2Scala}
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.testkit.TestActor.KeepRunning
@@ -10,22 +9,20 @@ import com.akkamelo.api.actor.client.ClientActor._
 import com.akkamelo.api.actor.client.domain.state.{Client, TransactionType}
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.{ApplyCommand, NonExistingClientActor}
 import com.akkamelo.api.adapter.endpoint.ActorResponse2ResponseDTO
-import com.akkamelo.api.endpoint.StartedServer
+import com.akkamelo.api.endpoint.Server
 import com.akkamelo.api.endpoint.dto.TransactionRequestDTO
 import com.akkamelo.api.endpoint.marshalling.CustomMarshalling._
-import org.mockito.MockitoSugar.mock
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
 import java.time.format.DateTimeFormatter
 import java.time.{LocalDateTime, ZoneOffset, ZonedDateTime}
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 
 class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
-
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val ec = system.dispatcher
 
@@ -35,7 +32,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     val transactionRequestJson = transactionRequest.toJson.toString()
     val responseDTO = ActorResponse2ResponseDTO(mockedBalanceAndLimitResponse)
 
-    val (testProbe, server) = resetProbeAndServer()
+    val (testProbe, server) = resetProbeAndServer(9090)
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
       msg match {
         case ApplyCommand(id, clientAddTransactionCommand: ClientAddTransactionCommand) if id == clientId && clientAddTransactionCommand == MockedTransaction.actorCommand =>
@@ -52,7 +49,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
   }
 
   it should "return a 422 Unprocessable entity when the transaction request is invalid" in {
-    val (testProbe, server) = resetProbeAndServer()
+    val (testProbe, server) = resetProbeAndServer(9091)
 
     val clientId = 1
     val invalidTransactionRequest = TransactionRequestDTO(-100, "c", "desc")
@@ -74,7 +71,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
   }
 
   it should "return a 422 Unprocessable entity when the transaction type in request is invalid" in {
-    val (testProbe, server) = resetProbeAndServer()
+    val (testProbe, server) = resetProbeAndServer(9092)
 
     val clientId = 1
     val invalidTransactionRequest = TransactionRequestDTO(-100, "cas", "desc")
@@ -94,7 +91,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
   }
 
   it should "return 404 if client doesn't exist" in {
-    val (testProbe, server) = resetProbeAndServer()
+    val (testProbe, server) = resetProbeAndServer(9093)
 
     val clientId = 1
     val transactionRequest = MockedTransaction.requestDTO
@@ -120,7 +117,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     val responseDTO = ActorResponse2ResponseDTO(mockedGetResponse)
     val responsePayloadJsonString = responseDTO.payload.toJson.toString()
 
-    val (testProbe, server) = resetProbeAndServer()
+    val (testProbe, server) = resetProbeAndServer(9094)
 
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
       msg match {
@@ -138,7 +135,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
   }
 
   it should "return 404 Not Found if client doesn't exist" in {
-    val (testProbe, server) = resetProbeAndServer()
+    val (testProbe, server) = resetProbeAndServer(9095)
 
     val clientId = 1
     val transactionRequest = MockedTransaction.requestDTO
@@ -167,9 +164,9 @@ object ServerSpec {
     .withZoneSameInstant(ZoneOffset.UTC) // Ensures time is interpreted in UTC
     .toLocalDateTime
 
-  def resetProbeAndServer()(implicit system: ActorSystem, ec: ExecutionContext, timeout: Timeout): (TestProbe, StartedServer) = {
+  def resetProbeAndServer(port: Int)(implicit system: ActorSystem, ec: ExecutionContext, timeout: Timeout): (TestProbe, Server) = {
     val actorSupervisorProbe = TestProbe()
-    val server = new StartedServer(mock[Future[Http.ServerBinding]], actorSupervisorProbe.ref)
+    val server = Server.newStartedAt("localhost", port, actorSupervisorProbe.ref)
     (actorSupervisorProbe, server)
   }
 

@@ -20,10 +20,10 @@ import scala.util.Success
 
 
 object Server {
-  def apply(host: String, port: Int, clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout): UnstartedServer = new UnstartedServer(host, port, clientActorResolver)
+  def newStartedAt(host: String, port: Int, clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout): Server = new Server(host, port, clientActorResolver)
 }
 
-trait Server extends BaseLogging {
+class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends BaseLogging {
   val route: Route = {
     concat(
       pathPrefix("clientes" / Segment / "transacoes") { clientId =>
@@ -42,31 +42,8 @@ trait Server extends BaseLogging {
       }
     )
   }
-  def handleRequest(clientId: Int, requestDTO: RequestDTO): Route
-  def start(): Server
-  def close(): Unit
-}
 
-class UnstartedServer(val host: String, val port: Int, val clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends Server {
-  def start(): Server = new StartedServer(Http().newServerAt(host, port).bind(route), clientActorResolver)
-  def close(): Unit = {
-    logger.warn("Attempted to close server that is not started")
-    throw new IllegalStateException("Server is not started")
-  }
-  override def handleRequest(clientId: Int, requestDTO: RequestDTO): Route = {
-    logger.warn("Attempted to handle a request in a server that is not started")
-    throw new IllegalStateException("Server is not started")
-  }
-}
-
-class StartedServer(val bindingFuture: Future[Http.ServerBinding], clientActorSupervisor: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends Server {
-
-  def start(): Server = {
-    logger.warn("Attempted to start server that is already started")
-    throw new IllegalStateException("Server is already started")
-  }
-
-  override def handleRequest(clientId: Int, request: RequestDTO): Route = {
+  def handleRequest(clientId: Int, request: RequestDTO): Route = {
     val command = Request2ActorCommand(request)
     val responseFuture: Future[ClientActorResponse] = (clientActorSupervisor ? ApplyCommand(clientId, command)).mapTo[ClientActorResponse]
 
@@ -79,11 +56,9 @@ class StartedServer(val bindingFuture: Future[Http.ServerBinding], clientActorSu
     }
   }
 
-
-  def close(): Unit = {
-    bindingFuture.flatMap(_.unbind())
+  val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(host, port).bind(route)
+  bindingFuture.onComplete {
+    case Success(value) => logger.info(s"Server online at http://$host:$port/")
+    case _ => logger.error("Failed to start server")
   }
-
-
-
 }

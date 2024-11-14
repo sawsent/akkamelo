@@ -13,11 +13,10 @@ import com.typesafe.config.ConfigFactory
 import java.util.concurrent.TimeUnit
 
 object Boot extends App {
-  implicit val system: ActorSystem = ActorSystem("no-conf")
-  implicit val ec = system.dispatcher
-
   val config = ConfigFactory.load()
 
+  implicit val system: ActorSystem = ActorSystem("no-conf")
+  implicit val ec = system.dispatcher
 
   val greeter = system.actorOf(GreeterActor.props, "greeter")
   greeter ! Configure(config.getString("boot.message"))
@@ -37,10 +36,10 @@ object Boot extends App {
     clientSupervisor ? RegisterClientActor(id, client.get("initialBalance").unwrapped().asInstanceOf[Int], client.get("limit").unwrapped().asInstanceOf[Int])
   })
 
-  val server: Server = Server("localhost", 8080, clientSupervisor).start()
+  val host: String = config.getString("server.host")
+  val port: Int = config.getInt("server.port")
+  val server: Server = Server.newStartedAt(host, port, clientSupervisor)
 
-  scala.io.StdIn.readLine()
-  server.close()
 
 }
 
