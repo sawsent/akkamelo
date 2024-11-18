@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 object Boot extends App {
   val config = ConfigFactory.load()
 
-  implicit val system: ActorSystem = ActorSystem("no-conf")
+  implicit val system: ActorSystem = ActorSystem("no-conf", config)
   implicit val ec = system.dispatcher
 
   val greeter = system.actorOf(GreeterActor.props, "greeter")
@@ -46,7 +46,7 @@ object Boot extends App {
 
   val host: String = config.getString("server.host")
   val port: Int = config.getInt("server.port")
-  // val server: Server = Server.newStartedAt(host, port, clientSupervisor)
+  val server: Server = Server.newStartedAt(host, port, clientSupervisor)
 
 
 }
