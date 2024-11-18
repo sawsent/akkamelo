@@ -2,6 +2,7 @@ package com.akkamelo.api.actor.persistencetest
 
 import akka.actor.{ActorLogging, Props}
 import akka.persistence.PersistentActor
+import com.akkamelo.api.actor.persistencetest.PersistentTestActor.PersistCmd
 
 object PersistentTestActor {
   case class PersistCmd(payload: String)
@@ -13,11 +14,13 @@ class PersistentTestActor(persistenceIdval: String) extends PersistentActor with
   override def persistenceId: String = persistenceIdval
 
   override def receiveRecover: Receive = {
-    case _ => log.info("Recovered")
+    case any: String => log.info("Recovered " + any)
+    case _ => log.error("Unknown message received during recovery")
   }
 
   override def receiveCommand: Receive = {
-    case _ => persist("event") { _ => log.info("Persisted") }
+    case PersistCmd(payload) => persist(payload) { payload => log.info("Persisted " + payload) }
+    case _ => log.error("Unknown message received")
   }
 
 }
