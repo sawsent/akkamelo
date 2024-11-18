@@ -1,13 +1,42 @@
 version: '3.8'
 
 services:
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    environment:
+      - CASSANDRA_CLUSTER_NAME=MyCassandraCluster
+      - CASSANDRA_DC=DC1
+      - CASSANDRA_RACK=Rack1
+      - CASSANDRA_LISTENER_INTERFACES=eth0
+    ports:
+      - "9042:9042"
+      - "7000:7000"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '8G'
+    healthcheck:
+      test: [ "CMD-SHELL", "cqlsh -e 'describe keyspaces' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - my-network
+
+
   scala-app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: scala-app
+    container_name: akkamelo
+    depends_on:
+      cassandra:
+        condition: service_healthy
     ports:
-      - 8080:8080
+      - "8080:8080"
+      - "8081:8081"
     environment:
       - JAVA_OPTS=-Xmx512m
     deploy:
@@ -15,3 +44,14 @@ services:
         limits:
           cpus: '2.0'
           memory: '2G'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - my-network
+
+networks:
+  my-network:
+    driver: bridge
