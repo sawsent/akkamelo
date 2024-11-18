@@ -3,7 +3,7 @@ package com.akkamelo.api.endpoint
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
@@ -26,6 +26,9 @@ object Server {
 class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends BaseLogging {
   val route: Route = {
     concat(
+      path("health") {
+        complete(StatusCodes.OK, "Server is online.")
+      },
       pathPrefix("clientes" / Segment / "transacoes") { clientId =>
         post {
           entity(as[TransactionRequestDTO]) { request =>
@@ -56,9 +59,8 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
     }
   }
 
-  val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(host, port).bind(route)
-  bindingFuture.onComplete {
-    case Success(value) => logger.info(s"Server online at http://$host:$port/")
+  Http().newServerAt(host, port).bind(route).onComplete {
+    case Success(_) => logger.info(s"Server online at http://$host:$port/")
     case _ => logger.error("Failed to start server")
   }
 }
