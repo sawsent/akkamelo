@@ -27,8 +27,16 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
   val route: Route = {
     concat(
       path("health") {
-        logger.info("Received request: 'GET /health'")
-        complete(StatusCodes.OK, "Server is online.")
+        get {
+          logger.debug("Received request: 'GET /health'")
+          complete(StatusCodes.OK, "Server is online")
+        }
+      },
+      pathPrefix("health" / Segment) { id =>
+        get {
+          logger.debug(s"Received request: 'GET /health' from '$id'")
+          complete(StatusCodes.OK, s"Server is online, $id")
+        }
       },
       pathPrefix("clientes" / Segment / "transacoes") { clientId =>
         post {

@@ -45,7 +45,7 @@ services:
           cpus: '2.0'
           memory: '2G'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/docker-compose"]
       interval: 10s
       timeout: 5s
       retries: 5
