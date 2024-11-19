@@ -1,21 +1,25 @@
 package com.akkamelo.api.actor.client.handler
 
 import com.akkamelo.api.actor.client.ClientActor.ClientAddTransactionCommand
-import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, Transaction, TransactionType}
+import com.akkamelo.api.actor.client.domain.state.{Client, ClientActorState, ClientNoState, ClientState, Credit, Debit, Transaction, TransactionType}
 import com.akkamelo.api.actor.client.exception.{ClientNotFoundException, InvalidTransactionException, TransactionConversionException}
 
 class ClientAddTransactionHandler {
   import ClientAddTransactionHandler.Handler
 
   def handle(): Handler = {
-    case (client, ClientAddTransactionCommand(value, TransactionType.CREDIT, description)) =>
-      validateClientId(client.id)
-      addTransactionToClient(client, Credit(value, description))
-    case (client, ClientAddTransactionCommand(value, TransactionType.DEBIT, description)) =>
-      validateClientId(client.id)
-      addTransactionToClient(client, Debit(value, description))
+    case (state: ClientState, ClientAddTransactionCommand(value, TransactionType.CREDIT, description)) =>
+      validateClientId(state.client.id)
+      val updatedClient = addTransactionToClient(state.client, Credit(value, description))
+      ClientState(updatedClient)
+    case (state: ClientState, ClientAddTransactionCommand(value, TransactionType.DEBIT, description)) =>
+      validateClientId(state.client.id)
+      val updatedClient = addTransactionToClient(state.client, Debit(value, description))
+      ClientState(updatedClient)
     case (_, ClientAddTransactionCommand(_, TransactionType.NO_TYPE, _)) =>
       throw InvalidTransactionException("Transaction type must be specified.")
+    case (ClientNoState, _) =>
+      throw ClientNotFoundException("Tried to add transaction to non-existing client.")
   }
 
   def addTransactionToClient(client: Client, transaction: Transaction): Client = client add transaction
@@ -25,7 +29,7 @@ class ClientAddTransactionHandler {
 }
 
 object ClientAddTransactionHandler {
-  type Handler = PartialFunction[(Client, ClientAddTransactionCommand), Client]
+  type Handler = PartialFunction[(ClientActorState, ClientAddTransactionCommand), ClientState]
   def apply(): ClientAddTransactionHandler = new ClientAddTransactionHandler()
 }
 

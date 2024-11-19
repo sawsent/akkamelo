@@ -61,7 +61,7 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
 
     onComplete(responseFuture) {
       case Success(response: ClientActorResponse) =>
-        val responseDTO = ActorResponse2ResponseDTO(response)
+        val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(response)
         complete(responseDTO.code, responseDTO.payload)
       case _ =>
         complete(StatusCode.int2StatusCode(500), "Internal server error")

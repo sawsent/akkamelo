@@ -2,9 +2,10 @@ package com.akkamelo.api.actor.client.supervisor
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.akkamelo.api.actor.client.ClientActor
-import com.akkamelo.api.actor.client.ClientActor.{ClientActorCommand, ClientActorResponse}
+import com.akkamelo.api.actor.client.ClientActor.{AssignClientCommand, ClientActorCommand, ClientActorResponse}
+import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
 import com.akkamelo.api.actor.client.domain.state.Client
-import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
+import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
 
 object ClientActorSupervisor {
   case class ApplyCommand(clientId: Int, command: ClientActorCommand)
@@ -41,7 +42,8 @@ class ClientActorSupervisor(val getChildName: Int => String) extends Actor with 
         sender() ! ClientActorAlreadyExists(clientId)
       case None =>
         val client = Client.initial.copy(id = clientId, balanceSnapshot = initialBalance, limit = limit)
-        val clientActor = context.actorOf(ClientActor.props(client, ClientAddTransactionHandler()), getChildName(clientId))
+        val clientActor = context.actorOf(ClientActor.props(getChildName(clientId), ClientAddTransactionHandler(), ClientAssignClientHandler(), ClientActorCommand2ActorEvent()), getChildName(clientId))
+        clientActor ! AssignClientCommand(client.id, client.limit, client.balanceSnapshot)
         log.info(s"Client Actor $clientId registered. Initial balance: $initialBalance, limit: $limit")
         sender() ! ClientActorRegistered(clientId)
     }
