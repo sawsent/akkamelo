@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   cassandra:
     image: cassandra:latest
@@ -12,11 +10,6 @@ services:
     ports:
       - "9042:9042"
       - "7000:7000"
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: '8G'
     healthcheck:
       test: [ "CMD-SHELL", "cqlsh -e 'describe keyspaces' || exit 1" ]
       interval: 10s
@@ -26,7 +19,7 @@ services:
       - my-network
 
 
-  scala-app:
+  akkamelo:
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -39,11 +32,6 @@ services:
       - "8081:8081"
     environment:
       - JAVA_OPTS=-Xmx512m
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: '2G'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/docker-compose"]
       interval: 10s

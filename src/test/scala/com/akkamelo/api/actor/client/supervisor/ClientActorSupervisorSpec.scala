@@ -1,19 +1,12 @@
 package com.akkamelo.api.actor.client.supervisor
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.pattern.ask
 import akka.testkit.TestActor.{AutoPilot, KeepRunning}
 import akka.testkit.{EventFilter, TestProbe}
-import akka.util.Timeout
-import com.akkamelo.api.actor.client.ClientActor
 import com.akkamelo.api.actor.client.ClientActor.{ClientGetStatementCommand, ClientStatementResponse}
 import com.akkamelo.api.actor.client.domain.state.Client
-import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor._
 import com.akkamelo.api.actor.common.BaseActorSpec
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-
-import scala.concurrent.Await
 
 class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSupervisorSpec")) {
   import ClientActorSupervisorSpec._
@@ -66,8 +59,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
 
     // Create equal client actor to the one that will be registered by the supervisor, to get the expected response
     clientActorSupervisor ! RegisterClientActor(clientId)
-    val testClientActor = system.actorOf(ClientActor.props(Client.initial.copy(id = clientId), ClientAddTransactionHandler()), "testClientActor-1")
-    val expectedResponse: ClientStatementResponse = Await.result((testClientActor ? ClientGetStatementCommand)(Timeout(1.second)).mapTo[ClientStatementResponse], 1.second)
+    val expectedResponse: ClientStatementResponse = ClientStatementResponse(Client.initialWithId(clientId).getStatement)
 
     clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
 

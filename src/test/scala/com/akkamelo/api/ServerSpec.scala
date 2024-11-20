@@ -30,7 +30,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     val clientId = 1
     val transactionRequest = MockedTransaction.requestDTO
     val transactionRequestJson = transactionRequest.toJson.toString()
-    val responseDTO = ActorResponse2ResponseDTO(mockedBalanceAndLimitResponse)
+    val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(mockedBalanceAndLimitResponse)
 
     val (testProbe, server) = resetProbeAndServer(9090)
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
@@ -114,7 +114,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
 
   "GET /clientes/{clientId}/extrato" should "return a client statement successfully" in {
     val clientId = 1
-    val responseDTO = ActorResponse2ResponseDTO(mockedGetResponse)
+    val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(mockedGetResponse)
     val responsePayloadJsonString = responseDTO.payload.toJson.toString()
 
     val (testProbe, server) = resetProbeAndServer(9094)

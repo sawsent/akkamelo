@@ -1,19 +1,27 @@
 package com.akkamelo.api.actor.client.domain.state
 
 object TransactionType {
-  case object CreditTransaction extends TransactionType
-  case object DebitTransaction extends TransactionType
-  case object NoTransactionType extends TransactionType
+  case object CreditTransaction extends TransactionType {
+    override def toStringRepresentation: String = "CREDIT"
+  }
+  case object DebitTransaction extends TransactionType {
+    override def toStringRepresentation: String = "DEBIT"
+  }
+  case object NoTransactionType extends TransactionType {
+    override def toStringRepresentation: String = "NO_TYPE"
+  }
 
   val NO_TYPE: TransactionType = NoTransactionType
   val CREDIT: TransactionType = CreditTransaction
   val DEBIT: TransactionType = DebitTransaction
 
-  def fromString(transactionType: String): TransactionType = transactionType match {
-    case "c" => CREDIT
-    case "d" => DEBIT
-    case _ => NO_TYPE
+  val fromStringRepresentation: String => TransactionType = {
+    case "CREDIT" => CreditTransaction
+    case "DEBIT" => DebitTransaction
+    case "NO_TYPE" => NoTransactionType
   }
 }
 
-class TransactionType
+trait TransactionType {
+  def toStringRepresentation: String
+}

@@ -3,7 +3,7 @@ package com.akkamelo.api.actor.client
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.persistence.{PersistentActor, RecoveryCompleted}
 import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
-import com.akkamelo.api.actor.client.domain.state.{Client, ClientActorState, ClientNoState, ClientState, Statement, Transaction, TransactionType}
+import com.akkamelo.api.actor.client.domain.state.{Client, ClientActorState, ClientNoState, ClientState, Credit, Debit, Statement, Transaction, TransactionType}
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException
 import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
 
@@ -17,7 +17,7 @@ object ClientActor {
 
   // EventRegion
   trait ClientActorEvent
-  case class ClientTransactionAddedEvent(transaction: Transaction) extends ClientActorEvent
+  case class ClientTransactionAddedEvent(value: Int, transactionType: String, description: String) extends ClientActorEvent
   case class ClientAssignedEvent(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorEvent
 
   // ResponseRegion
@@ -102,25 +102,49 @@ class ClientActor(persistenceIdentity: String,
     case any => log.warning(s"Received a message $any while without state. Ignoring.")
   }
 
-  override def receiveRecover: Receive = recoverInitialState
+  override def receiveRecover: Receive = {
+    var state: ClientActorState = ClientNoState
 
-  def recoverInitialState: Receive = {
+    val behaviour: Receive = {
+      case RecoveryCompleted =>
+        log.info(s"Recovery completed. Final state: $state")
+        context.become(handleCommands(state))
+
+      case evt: ClientAssignedEvent => state match {
+        case ClientNoState =>
+          state = recoverInitialState(evt)
+        case _ =>
+          log.warning(s"Received a ClientAssignedEvent while already assigned. Ignoring.")
+      }
+
+      case evt: ClientTransactionAddedEvent => state match {
+          case s: ClientState =>
+            val updatedState = recoverWithState(s, evt)
+            state = updatedState
+          case _ =>
+            log.warning(s"Received a ClientTransactionAddedEvent while without state. Ignoring.")
+      }
+    }
+    behaviour
+  }
+
+  def recoverInitialState(evt: ClientActorEvent): ClientActorState = evt match {
     case ClientAssignedEvent(clientId, initialLimit, initialBalance) =>
       val state = ClientState(Client.initialWithId(clientId).copy(limit = initialLimit, balanceSnapshot = initialBalance))
-      context.become(recoverWithState(state))
-    case RecoveryCompleted =>
-      log.info("Recovery completed.")
-      context.become(handleCommands(ClientNoState))
+      log.info(s"Recovered clientAssignedEvent, new state: $state")
+      state
   }
 
-  def recoverWithState(state: ClientState): Receive = {
+  def recoverWithState(state: ClientState, evt: ClientActorEvent): ClientActorState = evt match {
     case evt: ClientTransactionAddedEvent =>
       log.info(s"Recovering transaction: $evt")
-      val updatedState = ClientState(state.client.add(evt.transaction))
-      context.become(recoverWithState(ClientState(updatedState.client)))
-    case RecoveryCompleted =>
-      log.info("Recovery completed.")
-      context.become(handleCommands(state))
+      val updatedState = TransactionType.fromStringRepresentation(evt.transactionType) match {
+        case TransactionType.CREDIT =>
+          ClientState(state.client.add(Credit(evt.value, evt.description)))
+        case TransactionType.DEBIT =>
+          ClientState(state.client.add(Debit(evt.value, evt.description)))
+      }
+      log.info(s"Recovered clientAssignedEvent, new state: $updatedState")
+      updatedState
   }
-
 }
