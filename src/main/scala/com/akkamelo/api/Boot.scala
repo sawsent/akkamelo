@@ -42,9 +42,11 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
   def getClientActorSupervisor(): ActorRef = {
     val clientNamePrefix = config.getString("actor.client.name.prefix")
     val clientNameSuffix = config.getString("actor.client.name.suffix")
+    val clientActorPassivationTimeout = Timeout(config.getLong("actor.client.passivationTimeoutSeconds"), TimeUnit.SECONDS).duration
 
     system.actorOf(ClientActorSupervisor.props(
-      (id: Int) => clientNamePrefix + id.toString + clientNameSuffix
+      (id: Int) => clientNamePrefix + id.toString + clientNameSuffix,
+      clientActorPassivationTimeout
     ), "client-actor-supervisor")
   }
 

@@ -7,7 +7,10 @@ import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
 import com.akkamelo.api.actor.client.domain.state.{Client, ClientState, Credit, Debit, TransactionType}
 import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
 import com.akkamelo.api.actor.common.BaseActorSpec
+import io.netty.handler.timeout.TimeoutException
 import org.mockito.MockitoSugar.{mock, when}
+
+import scala.concurrent.duration.DurationInt
 
 class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 
@@ -88,6 +91,7 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 object ClientActorSpec {
   val CLIENT_NAME_PREFIX = "client-"
   val CLIENT_NAME_SUFFIX = ""
+  val clientActorPassivationTimeout = 1.minute
 
   def resetClient(system: ActorSystem,
                   clientId: Int,
@@ -98,7 +102,8 @@ object ClientActorSpec {
   {
     val client = Client.initial.copy(id = clientId, limit = limit)
     val clientActorNameAndPersistenceId = CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX
-    val clientActorRef = system.actorOf(ClientActor.props(CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX, addTransactionHandler, assignClientHandler, converter), clientActorNameAndPersistenceId)
+    val clientActorRef = system.actorOf(ClientActor.props(CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX,
+      addTransactionHandler, assignClientHandler, converter, clientActorPassivationTimeout), clientActorNameAndPersistenceId)
     (ClientState(client), clientActorRef)
   }
 }

@@ -1,11 +1,14 @@
 package com.akkamelo.api.actor.client
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, Props, ReceiveTimeout}
 import akka.persistence.{PersistentActor, RecoveryCompleted}
 import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
 import com.akkamelo.api.actor.client.domain.state.{Client, ClientActorState, ClientNoState, ClientState, Credit, Debit, Statement, Transaction, TransactionType}
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException
 import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
+import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.NonExistingClientActor
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object ClientActor {
 
@@ -23,6 +26,7 @@ object ClientActor {
   // ResponseRegion
   trait ClientActorResponse
   case class ClientAssignedResponse(client: Client) extends ClientActorResponse
+  case object ClientActorNotAssigned extends ClientActorResponse
   case class ClientStatementResponse(statement: Statement) extends ClientActorResponse
   case class ClientBalanceAndLimitResponse(balance: Int, limit: Int) extends ClientActorResponse
   case object ClientActorUnprocessableEntity extends ClientActorResponse
@@ -31,29 +35,38 @@ object ClientActor {
   def props(persistenceId: String,
             addTransactionHandler: ClientAddTransactionHandler,
             clientAssignClientHandler: ClientAssignClientHandler,
-            converter: ClientActorCommand2ActorEvent):
-  Props = Props(new ClientActor(persistenceId, addTransactionHandler, clientAssignClientHandler, converter))
+            converter: ClientActorCommand2ActorEvent,
+            passivationTimeout: FiniteDuration):
+  Props = Props(new ClientActor(persistenceId, addTransactionHandler, clientAssignClientHandler, converter, passivationTimeout))
 
 }
 
 class ClientActor(persistenceIdentity: String,
                   val addTransactionHandler: ClientAddTransactionHandler,
                   val clientAssignClientHandler: ClientAssignClientHandler,
-                  val converter: ClientActorCommand2ActorEvent) extends PersistentActor with ActorLogging
+                  val converter: ClientActorCommand2ActorEvent,
+                  passivationTimeout: FiniteDuration) extends PersistentActor with ActorLogging
 {
   import ClientActor._
   import context._
 
   override def persistenceId: String = persistenceIdentity
+  setReceiveTimeout(passivationTimeout)
 
   override def receiveCommand: Receive = handleCommands(ClientNoState)
 
-  def handleCommands(state: ClientActorState): Receive = {
+  def passivationStrategy: Receive = {
+    case ReceiveTimeout =>
+      log.info(s"Passivating actor with id $persistenceId.")
+      context.stop(self)
+  }
+
+  def handleCommands(state: ClientActorState): Receive = passivationStrategy.orElse({
     state match {
       case s: ClientState => handleClientCommands(s)
       case ClientNoState => handleNoStateCommands()
     }
-  }
+  })
 
   def handleClientCommands(state: ClientState): Receive = {
     case cmd: ClientAddTransactionCommand =>
@@ -99,7 +112,10 @@ class ClientActor(persistenceIdentity: String,
           sender() ! ClientActorPersistenceFailure(e.getMessage)
       }
 
-    case any => log.warning(s"Received a message $any while without state. Ignoring.")
+    case any: ClientActorCommand =>
+      log.warning(s"Received a message $any while without state. Ignoring.")
+      sender() ! NonExistingClientActor
+
   }
 
   override def receiveRecover: Receive = {
@@ -139,10 +155,8 @@ class ClientActor(persistenceIdentity: String,
     case evt: ClientTransactionAddedEvent =>
       log.info(s"Recovering transaction: $evt")
       val updatedState = TransactionType.fromStringRepresentation(evt.transactionType) match {
-        case TransactionType.CREDIT =>
-          ClientState(state.client.add(Credit(evt.value, evt.description)))
-        case TransactionType.DEBIT =>
-          ClientState(state.client.add(Debit(evt.value, evt.description)))
+        case TransactionType.CREDIT => ClientState(state.client.add(Credit(evt.value, evt.description)))
+        case TransactionType.DEBIT => ClientState(state.client.add(Debit(evt.value, evt.description)))
       }
       log.info(s"Recovered clientAssignedEvent, new state: $updatedState")
       updatedState

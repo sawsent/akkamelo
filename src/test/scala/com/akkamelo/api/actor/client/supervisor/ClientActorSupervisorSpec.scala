@@ -8,6 +8,8 @@ import com.akkamelo.api.actor.client.domain.state.Client
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor._
 import com.akkamelo.api.actor.common.BaseActorSpec
 
+import scala.concurrent.duration.DurationInt
+
 class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSupervisorSpec")) {
   import ClientActorSupervisorSpec._
 
@@ -87,9 +89,10 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
 object ClientActorSupervisorSpec {
   val CLIENT_ACTOR_NAME_PREFIX = "client-"
   val CLIENT_ACTOR_NAME_SUFFIX = ""
+  val clientActorPassivationTimeout = 1.minute
 
   def resetClientActorSupervisor(system: ActorSystem, name: String): ActorRef = {
-    system.actorOf(ClientActorSupervisor.props(_ => CLIENT_ACTOR_NAME_PREFIX + name + CLIENT_ACTOR_NAME_SUFFIX), name)
+    system.actorOf(ClientActorSupervisor.props(_ => CLIENT_ACTOR_NAME_PREFIX + name + CLIENT_ACTOR_NAME_SUFFIX, clientActorPassivationTimeout), name)
   }
 
   val echoProbeAutoPilot: AutoPilot = (sender, msg) => {
