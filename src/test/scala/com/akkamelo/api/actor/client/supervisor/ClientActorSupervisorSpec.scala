@@ -3,7 +3,7 @@ package com.akkamelo.api.actor.client.supervisor
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.{AutoPilot, KeepRunning}
 import akka.testkit.{EventFilter, TestProbe}
-import com.akkamelo.api.actor.client.ClientActor.{ClientGetStatementCommand, ClientStatementResponse}
+import com.akkamelo.api.actor.client.ClientActor.{ClientAlreadyExists, ClientDoesntExist, ClientGetStatementCommand, ClientRegistered, ClientStatementResponse, RegisterClient}
 import com.akkamelo.api.actor.client.domain.state.Client
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor._
 import com.akkamelo.api.actor.common.BaseActorSpec
@@ -25,10 +25,10 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     val limit = 50
 
     EventFilter.info(pattern = s"Client Actor $clientId registered. Initial balance: $initialBalance, limit: $limit") intercept {
-      clientActorSupervisor.tell(RegisterClientActor(clientId, initialBalance, limit), testProbe.ref)
+      clientActorSupervisor.tell(RegisterClient(clientId, initialBalance, limit), testProbe.ref)
     }
 
-    testProbe.expectMsg(ClientActorRegistered(clientId))
+    testProbe.expectMsg(ClientRegistered(clientId))
   }
 
   it should "log a warning if a client actor with the same ID already exists, and reply with ClientActorAlreadyExists" in {
@@ -40,12 +40,12 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     val initialBalance = 100
     val limit = 50
 
-    clientActorSupervisor ! RegisterClientActor(clientId, initialBalance, limit)
+    clientActorSupervisor ! RegisterClient(clientId, initialBalance, limit)
 
     EventFilter.error(pattern = s"Client with id $clientId already exists.") intercept {
-      clientActorSupervisor.tell(RegisterClientActor(clientId, initialBalance, limit), testProbe.ref)
+      clientActorSupervisor.tell(RegisterClient(clientId, initialBalance, limit), testProbe.ref)
     }
-    testProbe.expectMsg(ClientActorAlreadyAssigned(clientId))
+    testProbe.expectMsg(ClientAlreadyExists(clientId))
 
   }
 
@@ -56,13 +56,12 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     val testProbe = TestProbe()
     testProbe.setAutoPilot(echoProbeAutoPilot)
     testProbe.ignoreMsg({
-      case ClientActorRegistered(_) => true
+      case ClientRegistered(_) => true
     })
 
     val command = ClientGetStatementCommand
 
     // Create equal client actor to the one that will be registered by the supervisor, to get the expected response
-    clientActorSupervisor ! RegisterClientActor(clientId)
     val expectedResponse: ClientStatementResponse = ClientStatementResponse(Client.initialWithId(clientId).getStatement)
 
     clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
@@ -83,7 +82,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
       clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
     }
 
-    testProbe.expectMsg(NonExistingClientActor(clientId))
+    testProbe.expectMsg(ClientDoesntExist(clientId))
   }
 
 }

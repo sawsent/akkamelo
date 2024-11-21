@@ -1,12 +1,12 @@
 package com.akkamelo.api
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.util.Timeout
-import com.akkamelo.api.actor.client.ClientActor.ClientActorResponse
+import com.akkamelo.api.actor.client.ClientActor.{ClientActorResponse, ClientAlreadyExists, ClientRegistered, RegisterClient}
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.{ClientActorAlreadyAssigned, ClientActorRegistered, RegisterClientActor}
+import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.actor.greet.GreeterActor
 import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 import com.akkamelo.api.actor.persistencetest.PersistentTestActor
@@ -64,9 +64,9 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
       val initialBalance = client.get("initialBalance").unwrapped().asInstanceOf[Int]
       val limit = client.get("limit").unwrapped().asInstanceOf[Int]
 
-      (clientSupervisor ? RegisterClientActor(id, initialBalance, limit)).mapTo[ClientActorResponse].onComplete({
-        case Success(ClientActorRegistered(clientId)) => logger.info(s"Client $clientId registered.")
-        case Success(ClientActorAlreadyAssigned(clientId)) => logger.warn(s"Client $clientId already exists.")
+      (clientSupervisor ? ApplyCommand(id, RegisterClient(id, initialBalance, limit))).mapTo[ClientActorResponse].onComplete({
+        case Success(ClientRegistered(clientId)) => logger.info(s"Client $clientId registered.")
+        case Success(ClientAlreadyExists(clientId)) => logger.warn(s"Client $clientId already exists.")
         case _ => logger.warn(s"Client $id could not be registered.")
       })
     })

@@ -8,7 +8,7 @@ class ClientActorCommand2ActorEvent {
     case cmd: ClientAddTransactionCommand if cmd.transactionType == TransactionType.CREDIT =>
       ClientTransactionAddedEvent(cmd.value, cmd.transactionType.toStringRepresentation, cmd.description)
 
-    case AssignClientCommand(clientId, initialLimit, initialBalance) => ClientAssignedEvent(clientId, initialLimit, initialBalance)
+    case RegisterClient(clientId, initialLimit, initialBalance) => ClientRegisteredEvent(clientId, initialLimit, initialBalance)
   }
 }
 

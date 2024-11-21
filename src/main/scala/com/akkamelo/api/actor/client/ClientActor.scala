@@ -14,27 +14,24 @@ object ClientActor {
   // CommandRegion
   trait ClientActorCommand
   case class ClientAddTransactionCommand(value: Int, transactionType: TransactionType, description: String) extends ClientActorCommand
-  case class AssignClientCommand(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorCommand
+  case class RegisterClient(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorCommand
   case object ClientGetStatementCommand extends ClientActorCommand
-  case object ClientActorIsAssignedCommand extends ClientActorCommand
 
   // EventRegion
   trait ClientActorEvent
   case class ClientTransactionAddedEvent(value: Int, transactionType: String, description: String) extends ClientActorEvent
-  case class ClientAssignedEvent(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorEvent
+  case class ClientRegisteredEvent(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorEvent
 
   // ResponseRegion
   trait ClientActorResponse
-  case class ClientAssignedResponse(client: Client) extends ClientActorResponse
   case class ClientStatementResponse(statement: Statement) extends ClientActorResponse
   case class ClientBalanceAndLimitResponse(balance: Int, limit: Int) extends ClientActorResponse
   case object ClientActorUnprocessableEntity extends ClientActorResponse
   case class ClientActorPersistenceFailure(message: String) extends ClientActorResponse
+  case class ClientRegistered(clientId: Int) extends ClientActorResponse
 
-  trait ClientActorIsAssignedResponse extends ClientActorResponse
-  case class ClientActorIsAssigned(clientId: Int) extends ClientActorIsAssignedResponse
-  case object ClientActorIsNotAssigned extends ClientActorIsAssignedResponse
-
+  case class ClientDoesntExist(clientId: Int) extends ClientActorResponse
+  case class ClientAlreadyExists(clientId: Int) extends ClientActorResponse
 
   def props(persistenceId: String,
             addTransactionHandler: ClientAddTransactionHandler,
@@ -100,13 +97,13 @@ class ClientActor(persistenceIdentity: String,
       log.info(s"Received a ClientGetStatementCommand")
       sender() ! ClientStatementResponse(state.client.getStatement)
 
-    case ClientActorIsAssignedCommand =>
-      log.info(s"Received a ClientActorIsAssignedCommand")
-      sender() ! ClientActorIsAssigned(state.client.id)
+    case RegisterClient(_, _, _) =>
+      log.warning(s"Received a RegisterClient command with a state: $persistenceId")
+      sender() ! ClientAlreadyExists(state.client.id)
   }
 
   private def handleNoStateCommands: Receive = {
-    case cmd: AssignClientCommand =>
+    case cmd: RegisterClient =>
       log.info(s"Received an AssignClientCommand: $cmd")
       val state = clientAssignClientHandler.handle()(ClientNoState, cmd)
       try {
@@ -120,9 +117,9 @@ class ClientActor(persistenceIdentity: String,
           sender() ! ClientActorPersistenceFailure(e.getMessage)
       }
 
-    case ClientActorIsAssignedCommand =>
-      log.info(s"Received a ClientActorIsAssignedCommand")
-      sender() ! ClientActorIsNotAssigned
+    case _: ClientActorCommand =>
+      log.warning(s"Received a command without a state: $persistenceId")
+      sender() ! ClientDoesntExist
   }
 
   override def receiveRecover: Receive = {
@@ -142,7 +139,7 @@ class ClientActor(persistenceIdentity: String,
   }
 
   private def recoverInitialState(evt: ClientActorEvent): ClientActorState = evt match {
-    case ClientAssignedEvent(clientId, initialLimit, initialBalance) =>
+    case ClientRegisteredEvent(clientId, initialLimit, initialBalance) =>
       val state = ClientState(Client.initialWithId(clientId).copy(limit = initialLimit, balanceSnapshot = initialBalance))
       log.info(s"Recovered $evt, new state: $state")
       state
