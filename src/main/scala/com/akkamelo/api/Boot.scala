@@ -1,62 +1,74 @@
 package com.akkamelo.api
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.util.Timeout
-import com.akkamelo.api.Boot.{config, ec, system}
+import com.akkamelo.api.actor.client.ClientActor.ClientActorResponse
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.RegisterClientActor
+import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.{ClientActorAlreadyAssigned, ClientActorRegistered, RegisterClientActor}
 import com.akkamelo.api.actor.greet.GreeterActor
 import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 import com.akkamelo.api.actor.persistencetest.PersistentTestActor
 import com.akkamelo.api.endpoint.{PersistenceTestServer, Server}
+import com.akkamelo.core.logging.BaseLogging
 import com.typesafe.config.{Config, ConfigFactory}
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
+import scala.util.Success
 
 object Boot extends App {
-  val config: Config = ConfigFactory.load()
-  val systemName: String = config.getString("boot.system.name")
+  private val config: Config = ConfigFactory.load()
+  private val systemName: String = config.getString("boot.system.name")
 
   implicit val system: ActorSystem = ActorSystem(systemName, config)
   implicit val ec: ExecutionContext = system.dispatcher
   val materializer = Materializer(system)
 
-  val booter: Booter = Booter(system, ec, materializer, config)
+  private val booter: Booter = Booter(system, ec, materializer, config)
   booter.greet()
 
-  val clientActorSupervisor = booter.getClientActorSupervisor()
+  val clientActorSupervisor = booter.getClientActorSupervisor
   booter.registerInitialClients(clientActorSupervisor)
   val server: Option[Server] = booter.getServer(clientActorSupervisor)
-  val persistenceTestServer: Option[PersistenceTestServer] = booter.getPersistenceTestServer()
+  val persistenceTestServer: Option[PersistenceTestServer] = booter.getPersistenceTestServer
 
 }
 
 object Booter {
   def apply(system: ActorSystem, ec: ExecutionContext, materializer: Materializer, config: Config): Booter = new Booter(system, ec, materializer, config)
 }
-class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer: Materializer, val config: Config) {
 
-  def getClientActorSupervisor(): ActorRef = {
+class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer: Materializer, val config: Config) extends BaseLogging {
+
+  def getClientActorSupervisor: ActorRef = {
     val clientNamePrefix = config.getString("actor.client.name.prefix")
     val clientNameSuffix = config.getString("actor.client.name.suffix")
     val clientActorPassivationTimeout = Timeout(config.getLong("actor.client.passivationTimeoutSeconds"), TimeUnit.SECONDS).duration
+    val clientActorRequestTimeout = Timeout(config.getLong("actor.client.requestTimeoutSeconds"), TimeUnit.SECONDS)
 
     system.actorOf(ClientActorSupervisor.props(
       (id: Int) => clientNamePrefix + id.toString + clientNameSuffix,
-      clientActorPassivationTimeout
+      clientActorPassivationTimeout,
+      clientActorRequestTimeout
     ), "client-actor-supervisor")
   }
 
-  def registerInitialClients(clientSupervisor: ActorRef): Unit = {
+  def registerInitialClients(clientSupervisor: ActorRef)(implicit ec: ExecutionContext): Unit = {
     val initialClients = config.getObjectList("boot.initialClients")
     implicit val clientRegisterTimeout: Timeout = Timeout(config.getLong("boot.initial-register.timeoutSeconds"), TimeUnit.SECONDS)
 
     initialClients.forEach(client => {
       val id = client.get("id").unwrapped().asInstanceOf[Int]
-      clientSupervisor ? RegisterClientActor(id, client.get("initialBalance").unwrapped().asInstanceOf[Int], client.get("limit").unwrapped().asInstanceOf[Int])
+      val initialBalance = client.get("initialBalance").unwrapped().asInstanceOf[Int]
+      val limit = client.get("limit").unwrapped().asInstanceOf[Int]
+
+      (clientSupervisor ? RegisterClientActor(id, initialBalance, limit)).mapTo[ClientActorResponse].onComplete({
+        case Success(ClientActorRegistered(clientId)) => logger.info(s"Client $clientId registered.")
+        case Success(ClientActorAlreadyAssigned(clientId)) => logger.warn(s"Client $clientId already exists.")
+        case _ => logger.warn(s"Client $id could not be registered.")
+      })
     })
 
   }
@@ -83,15 +95,15 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
     greeter ! SayHello
   }
 
-  def getPersistenceTestServer(): Option[PersistenceTestServer] = {
+  def getPersistenceTestServer: Option[PersistenceTestServer] = {
     val persistenceTestServerEnabled = config.getBoolean("persistence-test-server.enabled")
     if (persistenceTestServerEnabled) {
-      Some(startPersistenceTestServer())
+      Some(startPersistenceTestServer)
     } else {
       None
     }
   }
-  def startPersistenceTestServer(): PersistenceTestServer = {
+  def startPersistenceTestServer: PersistenceTestServer = {
     val persistenceTestActor = system.actorOf(PersistentTestActor.props("persistence-test"), "persistence-test-actor")
     val persistenceTestHost: String = config.getString("persistence-test-server.host")
     val persistenceTestPort: Int = config.getInt("persistence-test-server.port")

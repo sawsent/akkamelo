@@ -7,6 +7,11 @@ services:
       - CASSANDRA_DC=DC1
       - CASSANDRA_RACK=Rack1
       - CASSANDRA_LISTENER_INTERFACES=eth0
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
     ports:
       - "9042:9042"
       - "7000:7000"
@@ -14,7 +19,7 @@ services:
       test: [ "CMD-SHELL", "cqlsh -e 'describe keyspaces' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
       - my-network
 
@@ -27,6 +32,11 @@ services:
     depends_on:
       cassandra:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
     ports:
       - "8080:8080"
       - "8081:8081"

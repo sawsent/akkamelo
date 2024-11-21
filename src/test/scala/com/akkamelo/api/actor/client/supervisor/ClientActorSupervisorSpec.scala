@@ -8,10 +8,12 @@ import com.akkamelo.api.actor.client.domain.state.Client
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor._
 import com.akkamelo.api.actor.common.BaseActorSpec
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSupervisorSpec")) {
   import ClientActorSupervisorSpec._
+  implicit val ec: ExecutionContext = system.dispatcher
 
   "A ClientActorSupervisor" should "register a client actor if it doesn't exist yet, and reply with ClientActorRegistered" in {
     val clientActorSupervisor = resetClientActorSupervisor(system, "cas1")
@@ -43,7 +45,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     EventFilter.error(pattern = s"Client with id $clientId already exists.") intercept {
       clientActorSupervisor.tell(RegisterClientActor(clientId, initialBalance, limit), testProbe.ref)
     }
-    testProbe.expectMsg(ClientActorAlreadyExists(clientId))
+    testProbe.expectMsg(ClientActorAlreadyAssigned(clientId))
 
   }
 
@@ -89,10 +91,11 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
 object ClientActorSupervisorSpec {
   val CLIENT_ACTOR_NAME_PREFIX = "client-"
   val CLIENT_ACTOR_NAME_SUFFIX = ""
-  val clientActorPassivationTimeout = 1.minute
+  val clientActorPassivationTimeout: FiniteDuration = 1.minute
+  val clientActorRequestTimeout: FiniteDuration = 5.seconds
 
-  def resetClientActorSupervisor(system: ActorSystem, name: String): ActorRef = {
-    system.actorOf(ClientActorSupervisor.props(_ => CLIENT_ACTOR_NAME_PREFIX + name + CLIENT_ACTOR_NAME_SUFFIX, clientActorPassivationTimeout), name)
+  def resetClientActorSupervisor(system: ActorSystem, name: String)(implicit ec: ExecutionContext): ActorRef = {
+    system.actorOf(ClientActorSupervisor.props(_ => CLIENT_ACTOR_NAME_PREFIX + name + CLIENT_ACTOR_NAME_SUFFIX, clientActorPassivationTimeout, clientActorRequestTimeout), name)
   }
 
   val echoProbeAutoPilot: AutoPilot = (sender, msg) => {
