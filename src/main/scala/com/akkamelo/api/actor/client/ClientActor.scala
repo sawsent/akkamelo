@@ -104,7 +104,7 @@ class ClientActor(persistenceIdentity: String,
       log.info(s"Received an AssignClientCommand: $cmd")
       val state = clientAssignClientHandler.handle()(ClientNoState, cmd)
       val event = converter.toActorEvent(cmd)
-      doPersist(event)(changeState(state))
+      doPersist(event)(changeStateAndRespond(state)(ClientRegistered(state.client.id)))
 
     case _: ClientActorCommand =>
       log.warning(s"Received a command before being registered.")

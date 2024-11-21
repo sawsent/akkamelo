@@ -58,6 +58,7 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
   def registerInitialClients(clientSupervisor: ActorRef)(implicit ec: ExecutionContext): Unit = {
     val initialClients = config.getObjectList("boot.initialClients")
     implicit val clientRegisterTimeout: Timeout = Timeout(config.getLong("boot.initial-register.timeoutSeconds"), TimeUnit.SECONDS)
+    logger.info(s"Registering initial clients if they dont exist")
 
     initialClients.forEach(client => {
       val id = client.get("id").unwrapped().asInstanceOf[Int]
@@ -66,11 +67,10 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
 
       (clientSupervisor ? ApplyCommand(id, RegisterClient(id, initialBalance, limit))).mapTo[ClientActorResponse].onComplete({
         case Success(ClientRegistered(clientId)) => logger.info(s"Client $clientId registered.")
-        case Success(ClientAlreadyExists) => logger.warn(s"Client already exists.")
-        case _ => logger.warn(s"Client $id could not be registered.")
+        case Success(ClientAlreadyExists) => logger.warn(s"Client $id already exists.")
+        case any => logger.warn(s"Client $id could not be registered. Received: $any")
       })
     })
-
   }
 
   def getServer(clientActorSupervisor: ActorRef): Option[Server] = {
