@@ -101,7 +101,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
       msg match {
         case ApplyCommand(id, _) if id == clientId =>
-          sender ! ClientDoesntExist(clientId)
+          sender ! ClientDoesntExist
       }
       KeepRunning
     })
@@ -146,7 +146,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
       msg match {
         case ApplyCommand(id, _) if id == clientId =>
-          sender ! ClientDoesntExist(clientId)
+          sender ! ClientDoesntExist
       }
       KeepRunning
     })

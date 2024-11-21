@@ -23,15 +23,15 @@ object ClientActor {
   case class ClientRegisteredEvent(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorEvent
 
   // ResponseRegion
-  trait ClientActorResponse
+  sealed trait ClientActorResponse extends Serializable
   case class ClientStatementResponse(statement: Statement) extends ClientActorResponse
   case class ClientBalanceAndLimitResponse(balance: Int, limit: Int) extends ClientActorResponse
   case object ClientActorUnprocessableEntity extends ClientActorResponse
   case class ClientActorPersistenceFailure(message: String) extends ClientActorResponse
   case class ClientRegistered(clientId: Int) extends ClientActorResponse
 
-  case class ClientDoesntExist(clientId: Int) extends ClientActorResponse
-  case class ClientAlreadyExists(clientId: Int) extends ClientActorResponse
+  case object ClientDoesntExist extends ClientActorResponse
+  case object ClientAlreadyExists extends ClientActorResponse
 
   def props(persistenceId: String,
             addTransactionHandler: ClientAddTransactionHandler,
@@ -98,8 +98,8 @@ class ClientActor(persistenceIdentity: String,
       sender() ! ClientStatementResponse(state.client.getStatement)
 
     case RegisterClient(_, _, _) =>
-      log.warning(s"Received a RegisterClient command with a state: $persistenceId")
-      sender() ! ClientAlreadyExists(state.client.id)
+      log.info(s"Received a RegisterClient command with a state: $persistenceId")
+      sender() ! ClientAlreadyExists
   }
 
   private def handleNoStateCommands: Receive = {

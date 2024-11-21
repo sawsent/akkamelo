@@ -104,11 +104,6 @@
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-persistence_2.13</artifactId>
-            <version>2.6.20</version>
-        </dependency>
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-persistence-cassandra_2.13</artifactId>
             <version>1.0.0</version>
         </dependency>

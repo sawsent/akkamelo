@@ -1,7 +1,7 @@
 package com.akkamelo.api.adapter.endpoint
 
 import akka.http.scaladsl.model.StatusCodes
-import com.akkamelo.api.actor.client.ClientActor.{ClientActorPersistenceFailure, ClientActorResponse, ClientActorUnprocessableEntity, ClientAlreadyExists, ClientBalanceAndLimitResponse, ClientDoesntExist, ClientStatementResponse}
+import com.akkamelo.api.actor.client.ClientActor.{ClientActorPersistenceFailure, ClientActorResponse, ClientActorUnprocessableEntity, ClientAlreadyExists, ClientBalanceAndLimitResponse, ClientDoesntExist, ClientRegistered, ClientStatementResponse}
 import com.akkamelo.api.actor.client.domain.state.TransactionType
 import com.akkamelo.api.endpoint.dto._
 
@@ -19,10 +19,12 @@ object ActorResponse2ResponseDTO {
       case ClientBalanceAndLimitResponse(balance, limit) =>
         ResponseDTO(StatusCodes.OK, Some(TransactionResponseDTOPayload(limit, balance)))
 
-      case ClientDoesntExist(clientId) =>
+      case ClientDoesntExist=>
         ResponseDTO(StatusCodes.NotFound, None)
-      case ClientAlreadyExists(clientId) =>
+      case ClientAlreadyExists=>
         ResponseDTO(StatusCodes.UnprocessableEntity, None)
+      case ClientRegistered(clientId) =>
+        ResponseDTO(StatusCodes.OK, None)
 
       case ClientActorUnprocessableEntity =>
         ResponseDTO(StatusCodes.UnprocessableEntity, None)

@@ -45,7 +45,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     EventFilter.error(pattern = s"Client with id $clientId already exists.") intercept {
       clientActorSupervisor.tell(RegisterClient(clientId, initialBalance, limit), testProbe.ref)
     }
-    testProbe.expectMsg(ClientAlreadyExists(clientId))
+    testProbe.expectMsg(ClientAlreadyExists)
 
   }
 
@@ -82,7 +82,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
       clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
     }
 
-    testProbe.expectMsg(ClientDoesntExist(clientId))
+    testProbe.expectMsg(ClientDoesntExist)
   }
 
 }
