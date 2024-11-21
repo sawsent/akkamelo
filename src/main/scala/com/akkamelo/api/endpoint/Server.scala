@@ -61,10 +61,9 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
 
     onComplete(responseFuture) {
       case Success(response: ClientActorResponse) =>
-        logger.debug(s"Received response from client actor: $response")
         val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(response)
         complete(responseDTO.code, responseDTO.payload)
-      case Failure(any) =>
+      case any =>
         logger.error(s"Failed to process request: $any")
         complete(StatusCode.int2StatusCode(500), "Internal server error")
     }
