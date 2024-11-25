@@ -10,7 +10,6 @@ import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, Clien
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Success
 
 object ClientActorSupervisor {
   case class ApplyCommand(clientId: Int, command: ClientActorCommand)
@@ -22,7 +21,6 @@ object ClientActorSupervisor {
 
 class ClientActorSupervisor(val getChildName: Int => String, clientActorPassivationTimeout: FiniteDuration, clientActorRequestTimeout: Timeout) extends Actor with ActorLogging {
   import ClientActorSupervisor._
-  implicit val ec: ExecutionContext = context.dispatcher
   implicit val clientActorPassivationTimeoutDuration: FiniteDuration = clientActorPassivationTimeout
   implicit val clientActorRequestTimeoutDuration: Timeout = clientActorRequestTimeout
 
