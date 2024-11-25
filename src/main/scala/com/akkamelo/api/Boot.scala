@@ -65,7 +65,7 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
       val initialBalance = client.get("initialBalance").unwrapped().asInstanceOf[Int]
       val limit = client.get("limit").unwrapped().asInstanceOf[Int]
 
-      (clientSupervisor ? ApplyCommand(id, RegisterClient(id, initialBalance, limit))).mapTo[ClientActorResponse].onComplete({
+      (clientSupervisor ? ApplyCommand(id, RegisterClient(id, limit, initialBalance))).mapTo[ClientActorResponse].onComplete({
         case Success(ClientRegistered(clientId)) => logger.info(s"Client $clientId registered.")
         case Success(ClientAlreadyExists) => logger.warn(s"Client $id already exists.")
         case any => logger.warn(s"Client $id could not be registered. Received: $any")

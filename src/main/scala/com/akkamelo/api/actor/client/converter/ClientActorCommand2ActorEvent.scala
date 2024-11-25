@@ -5,7 +5,7 @@ import com.akkamelo.api.actor.client.domain.state.{Credit, Debit, Transaction, T
 
 class ClientActorCommand2ActorEvent {
   def toActorEvent(actorCommand: ClientActorCommand): ClientActorEvent = actorCommand match {
-    case cmd: ClientAddTransactionCommand if cmd.transactionType == TransactionType.CREDIT =>
+    case cmd: ClientAddTransactionCommand =>
       ClientTransactionAddedEvent(cmd.value, cmd.transactionType.toStringRepresentation, cmd.description)
 
     case RegisterClient(clientId, initialLimit, initialBalance) => ClientRegisteredEvent(clientId, initialLimit, initialBalance)
