@@ -1,5 +1,5 @@
 import ServerSpec.{MockedTransaction, mockedBalanceAndLimitResponse, mockedGetResponse, resetProbeAndServer}
-import akka.actor.{ActorRef, ActorSystem, actorRef2Scala}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.testkit.TestActor.KeepRunning
@@ -7,7 +7,7 @@ import akka.testkit.TestProbe
 import akka.util.Timeout
 import com.akkamelo.api.actor.client.ClientActor._
 import com.akkamelo.api.actor.client.domain.state.{Client, TransactionType}
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.{ApplyCommand, NonExistingClientActor}
+import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.adapter.endpoint.ActorResponse2ResponseDTO
 import com.akkamelo.api.endpoint.Server
 import com.akkamelo.api.endpoint.dto.TransactionRequestDTO
@@ -30,7 +30,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     val clientId = 1
     val transactionRequest = MockedTransaction.requestDTO
     val transactionRequestJson = transactionRequest.toJson.toString()
-    val responseDTO = ActorResponse2ResponseDTO(mockedBalanceAndLimitResponse)
+    val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(mockedBalanceAndLimitResponse)
 
     val (testProbe, server) = resetProbeAndServer(9090)
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
@@ -101,7 +101,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
       msg match {
         case ApplyCommand(id, _) if id == clientId =>
-          sender ! NonExistingClientActor(clientId)
+          sender ! ClientDoesntExist
       }
       KeepRunning
     })
@@ -114,7 +114,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
 
   "GET /clientes/{clientId}/extrato" should "return a client statement successfully" in {
     val clientId = 1
-    val responseDTO = ActorResponse2ResponseDTO(mockedGetResponse)
+    val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(mockedGetResponse)
     val responsePayloadJsonString = responseDTO.payload.toJson.toString()
 
     val (testProbe, server) = resetProbeAndServer(9094)
@@ -146,7 +146,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
       msg match {
         case ApplyCommand(id, _) if id == clientId =>
-          sender ! NonExistingClientActor(clientId)
+          sender ! ClientDoesntExist
       }
       KeepRunning
     })

@@ -3,10 +3,14 @@ package com.akkamelo.api.actor.client
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import com.akkamelo.api.actor.client.ClientActor.{ClientActorUnprocessableEntity, ClientAddTransactionCommand, ClientBalanceAndLimitResponse, ClientGetStatementCommand, ClientStatementResponse}
-import com.akkamelo.api.actor.client.domain.state.{Client, Credit, Debit, TransactionType}
-import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
+import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
+import com.akkamelo.api.actor.client.domain.state.{Client, ClientState, Credit, Debit, TransactionType}
+import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
 import com.akkamelo.api.actor.common.BaseActorSpec
+import io.netty.handler.timeout.TimeoutException
 import org.mockito.MockitoSugar.{mock, when}
+
+import scala.concurrent.duration.DurationInt
 
 class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 
@@ -15,10 +19,11 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
   "A client Actor" should "reply with the balance and limit after adding a transaction" in {
     val clientId = 1
 
+    val mockedTransactionAddCommand = ClientAddTransactionCommand(100, TransactionType.CREDIT, "Test")
     val handlerMock = mock[ClientAddTransactionHandler]
     when(handlerMock.handle()).thenReturn({
-      case (client, ClientAddTransactionCommand(value, TransactionType.CREDIT, description)) =>
-        Client.initialWithId(clientId).copy(transactions = List(Credit(value, description)))
+      case (_, command: ClientAddTransactionCommand) if command == mockedTransactionAddCommand =>
+        ClientState(Client.initialWithId(clientId).copy(transactions = List(Credit(command.value, command.description))))
     })
 
     val testProbe = TestProbe()
@@ -26,11 +31,21 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 
     val transactionValue = 100
     clientActorRef.tell(ClientAddTransactionCommand(transactionValue, TransactionType.CREDIT, "Test"), testProbe.ref)
-    testProbe.expectMsg(ClientBalanceAndLimitResponse(clientState.balance + transactionValue, clientState.limit))
+    testProbe.expectMsg(ClientBalanceAndLimitResponse(clientState.client.balance + transactionValue, clientState.client.limit))
   }
 
   it should "reply with the statement when requested" in {
     val clientId = 2
+
+    val mockedTransactionAddCommandCredit = ClientAddTransactionCommand(100, TransactionType.CREDIT, "Test")
+    val mockedTransactionAddCommandDebit = ClientAddTransactionCommand(100, TransactionType.DEBIT, "Test")
+    val handlerMock = mock[ClientAddTransactionHandler]
+    when(handlerMock.handle()).thenReturn({
+      case (state: ClientState, command: ClientAddTransactionCommand) if command == mockedTransactionAddCommandCredit =>
+        ClientState(state.client add Credit(command.value, command.description))
+      case (state: ClientState, command: ClientAddTransactionCommand) if command == mockedTransactionAddCommandDebit =>
+        ClientState(state.client add Debit(command.value, command.description))
+    })
 
     val testProbe = TestProbe()
     testProbe.ignoreMsg({
@@ -38,18 +53,16 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
       case _ => false
     })
 
-    val (clientState, clientActorRef) = resetClient(system, clientId)
+    val (clientState, clientActorRef) = resetClient(system, clientId, addTransactionHandler = handlerMock)
 
-    clientActorRef.tell(ClientAddTransactionCommand(100, TransactionType.CREDIT, "Test"), testProbe.ref)
-    clientActorRef.tell(ClientAddTransactionCommand(50, TransactionType.DEBIT, "Test"), testProbe.ref)
-    clientActorRef.tell(ClientAddTransactionCommand(25, TransactionType.CREDIT, "Test"), testProbe.ref)
+    clientActorRef.tell(mockedTransactionAddCommandCredit, testProbe.ref)
+    clientActorRef.tell(mockedTransactionAddCommandDebit, testProbe.ref)
+    clientActorRef.tell(mockedTransactionAddCommandCredit, testProbe.ref)
 
-    val updatedClientState = clientState.add(Credit(100, "Test"))
-      .add(Debit(50, "Test"))
-      .add(Credit(25, "Test"))
+    val updatedClientState = handlerMock.handle()(handlerMock.handle()(handlerMock.handle()(clientState, mockedTransactionAddCommandCredit), mockedTransactionAddCommandDebit), mockedTransactionAddCommandCredit)
 
     clientActorRef.tell(ClientGetStatementCommand, testProbe.ref)
-    testProbe.expectMsg(ClientStatementResponse(updatedClientState.getStatement))
+    testProbe.expectMsg(ClientStatementResponse(updatedClientState.client.getStatement))
   }
 
   it should "reply with an ActorProcessingFailure when the Transaction doesn't go through and ClientState should stay the same" in {
@@ -69,7 +82,7 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
     testProbe.expectMsg(ClientActorUnprocessableEntity)
 
     clientActorRef.tell(ClientGetStatementCommand, testProbe.ref)
-    testProbe.expectMsg(ClientStatementResponse(clientState.getStatement))
+    testProbe.expectMsg(ClientStatementResponse(clientState.client.getStatement))
   }
 
 
@@ -78,10 +91,19 @@ class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 object ClientActorSpec {
   val CLIENT_NAME_PREFIX = "client-"
   val CLIENT_NAME_SUFFIX = ""
+  val clientActorPassivationTimeout = 1.minute
 
-  def resetClient(system: ActorSystem, clientId: Int, limit: Int = 0, addTransactionHandler: ClientAddTransactionHandler = ClientAddTransactionHandler()): (Client, ActorRef) = {
+  def resetClient(system: ActorSystem,
+                  clientId: Int,
+                  limit: Int = 0,
+                  addTransactionHandler: ClientAddTransactionHandler = ClientAddTransactionHandler(),
+                  assignClientHandler: ClientAssignClientHandler = ClientAssignClientHandler(),
+                  converter: ClientActorCommand2ActorEvent = ClientActorCommand2ActorEvent()): (ClientState, ActorRef) =
+  {
     val client = Client.initial.copy(id = clientId, limit = limit)
-    val clientActorRef = system.actorOf(ClientActor.props(client, addTransactionHandler), CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX)
-    (client, clientActorRef)
+    val clientActorNameAndPersistenceId = CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX
+    val clientActorRef = system.actorOf(ClientActor.props(CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX,
+      addTransactionHandler, assignClientHandler, converter, clientActorPassivationTimeout), clientActorNameAndPersistenceId)
+    (ClientState(client), clientActorRef)
   }
 }

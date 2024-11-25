@@ -16,7 +16,7 @@ import com.akkamelo.api.endpoint.marshalling.CustomMarshalling._
 import com.akkamelo.core.logging.BaseLogging
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 
 object Server {
@@ -27,7 +27,16 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
   val route: Route = {
     concat(
       path("health") {
-        complete(StatusCodes.OK, "Server is online.")
+        get {
+          logger.debug("Received request: 'GET /health'")
+          complete(StatusCodes.OK, "Server is online")
+        }
+      },
+      pathPrefix("health" / Segment) { id =>
+        get {
+          logger.debug(s"Received request: 'GET /health' from '$id'")
+          complete(StatusCodes.OK, s"Server is online, $id")
+        }
       },
       pathPrefix("clientes" / Segment / "transacoes") { clientId =>
         post {
@@ -52,9 +61,10 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
 
     onComplete(responseFuture) {
       case Success(response: ClientActorResponse) =>
-        val responseDTO = ActorResponse2ResponseDTO(response)
+        val responseDTO = ActorResponse2ResponseDTO.toResponseDTO(response)
         complete(responseDTO.code, responseDTO.payload)
-      case _ =>
+      case any =>
+        logger.error(s"Failed to process request: $any")
         complete(StatusCode.int2StatusCode(500), "Internal server error")
     }
   }

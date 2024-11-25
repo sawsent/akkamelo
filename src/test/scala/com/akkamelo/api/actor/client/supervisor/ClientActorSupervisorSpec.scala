@@ -1,22 +1,19 @@
 package com.akkamelo.api.actor.client.supervisor
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.pattern.ask
 import akka.testkit.TestActor.{AutoPilot, KeepRunning}
 import akka.testkit.{EventFilter, TestProbe}
-import akka.util.Timeout
-import com.akkamelo.api.actor.client.ClientActor
-import com.akkamelo.api.actor.client.ClientActor.{ClientGetStatementCommand, ClientStatementResponse}
+import com.akkamelo.api.actor.client.ClientActor.{ClientAlreadyExists, ClientDoesntExist, ClientGetStatementCommand, ClientRegistered, ClientStatementResponse, RegisterClient}
 import com.akkamelo.api.actor.client.domain.state.Client
-import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor._
 import com.akkamelo.api.actor.common.BaseActorSpec
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
-import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSupervisorSpec")) {
   import ClientActorSupervisorSpec._
+  implicit val ec: ExecutionContext = system.dispatcher
 
   "A ClientActorSupervisor" should "register a client actor if it doesn't exist yet, and reply with ClientActorRegistered" in {
     val clientActorSupervisor = resetClientActorSupervisor(system, "cas1")
@@ -28,10 +25,10 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     val limit = 50
 
     EventFilter.info(pattern = s"Client Actor $clientId registered. Initial balance: $initialBalance, limit: $limit") intercept {
-      clientActorSupervisor.tell(RegisterClientActor(clientId, initialBalance, limit), testProbe.ref)
+      clientActorSupervisor.tell(RegisterClient(clientId, initialBalance, limit), testProbe.ref)
     }
 
-    testProbe.expectMsg(ClientActorRegistered(clientId))
+    testProbe.expectMsg(ClientRegistered(clientId))
   }
 
   it should "log a warning if a client actor with the same ID already exists, and reply with ClientActorAlreadyExists" in {
@@ -43,12 +40,12 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     val initialBalance = 100
     val limit = 50
 
-    clientActorSupervisor ! RegisterClientActor(clientId, initialBalance, limit)
+    clientActorSupervisor ! RegisterClient(clientId, initialBalance, limit)
 
     EventFilter.error(pattern = s"Client with id $clientId already exists.") intercept {
-      clientActorSupervisor.tell(RegisterClientActor(clientId, initialBalance, limit), testProbe.ref)
+      clientActorSupervisor.tell(RegisterClient(clientId, initialBalance, limit), testProbe.ref)
     }
-    testProbe.expectMsg(ClientActorAlreadyExists(clientId))
+    testProbe.expectMsg(ClientAlreadyExists)
 
   }
 
@@ -59,15 +56,13 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     val testProbe = TestProbe()
     testProbe.setAutoPilot(echoProbeAutoPilot)
     testProbe.ignoreMsg({
-      case ClientActorRegistered(_) => true
+      case ClientRegistered(_) => true
     })
 
     val command = ClientGetStatementCommand
 
     // Create equal client actor to the one that will be registered by the supervisor, to get the expected response
-    clientActorSupervisor ! RegisterClientActor(clientId)
-    val testClientActor = system.actorOf(ClientActor.props(Client.initial.copy(id = clientId), ClientAddTransactionHandler()), "testClientActor-1")
-    val expectedResponse: ClientStatementResponse = Await.result((testClientActor ? ClientGetStatementCommand)(Timeout(1.second)).mapTo[ClientStatementResponse], 1.second)
+    val expectedResponse: ClientStatementResponse = ClientStatementResponse(Client.initialWithId(clientId).getStatement)
 
     clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
 
@@ -87,7 +82,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
       clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
     }
 
-    testProbe.expectMsg(NonExistingClientActor(clientId))
+    testProbe.expectMsg(ClientDoesntExist)
   }
 
 }
@@ -95,9 +90,11 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
 object ClientActorSupervisorSpec {
   val CLIENT_ACTOR_NAME_PREFIX = "client-"
   val CLIENT_ACTOR_NAME_SUFFIX = ""
+  val clientActorPassivationTimeout: FiniteDuration = 1.minute
+  val clientActorRequestTimeout: FiniteDuration = 5.seconds
 
-  def resetClientActorSupervisor(system: ActorSystem, name: String): ActorRef = {
-    system.actorOf(ClientActorSupervisor.props(_ => CLIENT_ACTOR_NAME_PREFIX + name + CLIENT_ACTOR_NAME_SUFFIX), name)
+  def resetClientActorSupervisor(system: ActorSystem, name: String)(implicit ec: ExecutionContext): ActorRef = {
+    system.actorOf(ClientActorSupervisor.props(_ => CLIENT_ACTOR_NAME_PREFIX + name + CLIENT_ACTOR_NAME_SUFFIX, clientActorPassivationTimeout, clientActorRequestTimeout), name)
   }
 
   val echoProbeAutoPilot: AutoPilot = (sender, msg) => {

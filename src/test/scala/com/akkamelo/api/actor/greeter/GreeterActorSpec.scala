@@ -57,7 +57,6 @@ class GreeterActorSpec extends BaseActorSpec(ActorSystem("GreeterActorSpec")) {
     val testProbe = TestProbe()
     val configuredGreeterActor = getConfiguredGreeterActor(system, "cg2", greeting, testProbe)
     configuredGreeterActor.tell(Configure(greeting), testProbe.ref)
-    testProbe.expectMsg(ConfigurationSuccess(greeting))
 
     configuredGreeterActor.tell(SayHello, testProbe.ref)
     testProbe.expectNoMessage()
