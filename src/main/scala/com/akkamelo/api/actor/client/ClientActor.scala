@@ -6,21 +6,21 @@ import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
 import com.akkamelo.api.actor.client.domain.state._
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException
 import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
+import com.akkamelo.core.actor.BaseActor.{ActorCommand, ActorEvent}
 
 import scala.concurrent.duration.FiniteDuration
 
 object ClientActor {
-
   // CommandRegion
-  trait ClientActorCommand
-  case class ClientAddTransactionCommand(value: Int, transactionType: TransactionType, description: String) extends ClientActorCommand
-  case class RegisterClient(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorCommand
-  case object ClientGetStatementCommand extends ClientActorCommand
+  trait ClientActorCommand extends ActorCommand
+  case class ClientAddTransactionCommand(entityId: Int, value: Int, transactionType: TransactionType, description: String) extends ClientActorCommand
+  case class RegisterClient(entityId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorCommand
+  case class ClientGetStatementCommand(entityId: Int) extends ClientActorCommand
 
   // EventRegion
-  trait ClientActorEvent
-  case class ClientTransactionAddedEvent(value: Int, transactionType: String, description: String) extends ClientActorEvent
-  case class ClientRegisteredEvent(clientId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorEvent
+  trait ClientActorEvent extends ActorEvent
+  case class ClientTransactionAddedEvent(entityId: Int, value: Int, transactionType: String, description: String) extends ClientActorEvent
+  case class ClientRegisteredEvent(entityId: Int, initialLimit: Int, initialBalance: Int) extends ClientActorEvent
 
   // ResponseRegion
   sealed trait ClientActorResponse extends Serializable
@@ -39,7 +39,6 @@ object ClientActor {
             converter: ClientActorCommand2ActorEvent,
             passivationTimeout: FiniteDuration):
   Props = Props(new ClientActor(persistenceId, addTransactionHandler, clientAssignClientHandler, converter, passivationTimeout))
-
 }
 
 class ClientActor(persistenceIdentity: String,
@@ -81,7 +80,7 @@ class ClientActor(persistenceIdentity: String,
     case cmd: ClientAddTransactionCommand =>
       log.info(s"Received a ClientAddTransactionCommand: $cmd")
       try {
-        val updatedState = addTransactionHandler.handle()(state, cmd)
+        val updatedState = addTransactionHandler.handle(state, cmd).toFullState
         val event = converter.toActorEvent(cmd)
         doPersist(event)(changeStateAndRespond(updatedState)(ClientBalanceAndLimitResponse(updatedState.client.balance, updatedState.client.limit)))
       } catch {
@@ -90,7 +89,7 @@ class ClientActor(persistenceIdentity: String,
           sender() ! ClientActorUnprocessableEntity
       }
 
-    case ClientGetStatementCommand =>
+    case ClientGetStatementCommand(_) =>
       log.info(s"Received a ClientGetStatementCommand")
       sender() ! ClientStatementResponse(state.client.getStatement)
 
@@ -102,9 +101,15 @@ class ClientActor(persistenceIdentity: String,
   private def handleNoStateCommands: Receive = {
     case cmd: RegisterClient =>
       log.info(s"Received an AssignClientCommand: $cmd")
-      val state = clientAssignClientHandler.handle()(ClientNoState, cmd)
-      val event = converter.toActorEvent(cmd)
-      doPersist(event)(changeStateAndRespond(state)(ClientRegistered(state.client.id)))
+      try {
+        val state = clientAssignClientHandler.handle(ClientNoState, cmd).toFullState
+        val event = converter.toActorEvent(cmd)
+        doPersist(event)(changeStateAndRespond(state)(ClientRegistered(state.client.id)))
+      } catch {
+        case _: Exception =>
+          log.info(s"Client ${cmd.entityId} already exists. Ignoring.")
+          sender() ! ClientAlreadyExists
+      }
 
     case _: ClientActorCommand =>
       log.warning(s"Received a command before being registered.")
@@ -123,7 +128,6 @@ class ClientActor(persistenceIdentity: String,
     become(receive(newState))
     sender() ! response
   }
-
 
   override def receiveRecover: Receive = {
     var state: ClientActorState = ClientNoState

@@ -1,6 +1,5 @@
 package com.akkamelo.api.actor.client.domain.state
 
-import com.akkamelo.api.actor.client.domain.state.{Credit, Debit, Transaction}
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -20,7 +19,6 @@ class TransactionSpec extends AnyFlatSpec {
       case _ => false
     }
     assert(creditIsATransaction)
-
   }
 
   it should "must have a positive value" in {
@@ -32,21 +30,16 @@ class TransactionSpec extends AnyFlatSpec {
     }
     val credit = Credit(200, "desc")
     assert(credit.value == 200)
-
   }
 
   it should "must have a description with size between 1 and 10" in {
     assertThrows[InvalidTransactionException] {
       Debit(100, "")
     }
-
     assertThrows[InvalidTransactionException] {
       Debit(100, "12345678901")
     }
-
     val credit = Credit(200, "1234567890")
     assert(credit.description == "1234567890")
-
   }
-
 }

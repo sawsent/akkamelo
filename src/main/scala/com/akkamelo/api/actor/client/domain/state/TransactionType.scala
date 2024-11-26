@@ -1,13 +1,13 @@
 package com.akkamelo.api.actor.client.domain.state
 
 object TransactionType {
-  case object CreditTransaction extends TransactionType {
+  private case object CreditTransaction extends TransactionType {
     override def toStringRepresentation: String = "CREDIT"
   }
-  case object DebitTransaction extends TransactionType {
+  private case object DebitTransaction extends TransactionType {
     override def toStringRepresentation: String = "DEBIT"
   }
-  case object NoTransactionType extends TransactionType {
+  private case object NoTransactionType extends TransactionType {
     override def toStringRepresentation: String = "NO_TYPE"
   }
 

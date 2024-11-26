@@ -53,7 +53,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
 
     val clientId = 1
     val invalidTransactionRequest = TransactionRequestDTO(-100, "c", "desc")
-    val invalidTransactionCommandEuivalent = ClientAddTransactionCommand(-100, TransactionType.CREDIT, "desc")
+    val invalidTransactionCommandEuivalent = ClientAddTransactionCommand(1, -100, TransactionType.CREDIT, "desc")
     val invalidTransactionRequestJson = invalidTransactionRequest.toJson.toString()
 
     testProbe.setAutoPilot((sender: ActorRef, msg: Any) => {
@@ -128,7 +128,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     })
 
     Get(s"/clientes/$clientId/extrato") ~> server.route ~> check {
-      testProbe.expectMsg(ApplyCommand(clientId, ClientGetStatementCommand))
+      testProbe.expectMsg(ApplyCommand(clientId, ClientGetStatementCommand(clientId)))
       status shouldBe StatusCodes.OK
       responseAs[String] should include (responsePayloadJsonString)
     }
@@ -152,7 +152,7 @@ class ServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
     })
 
     Get(s"/clientes/$clientId/extrato") ~> server.route ~> check {
-      testProbe.expectMsg(ApplyCommand(clientId, ClientGetStatementCommand))
+      testProbe.expectMsg(ApplyCommand(clientId, ClientGetStatementCommand(clientId)))
       status shouldBe StatusCodes.NotFound
     }
   }
@@ -178,7 +178,7 @@ object ServerSpec {
 
   case object MockedTransaction {
     val requestDTO = TransactionRequestDTO(100, "c", "desc")
-    val actorCommand = ClientAddTransactionCommand(100, TransactionType.CREDIT, "desc")
+    val actorCommand = ClientAddTransactionCommand(1, 100, TransactionType.CREDIT, "desc")
   }
   val mockedTransactionRequestDTO = TransactionRequestDTO(100, "c", "desc")
 }

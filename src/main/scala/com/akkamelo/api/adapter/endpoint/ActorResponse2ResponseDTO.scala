@@ -39,6 +39,4 @@ object ActorResponse2ResponseDTO {
       case TransactionType.CREDIT => "c"
     }
   }
-
-
 }

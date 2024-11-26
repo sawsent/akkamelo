@@ -1,7 +1,7 @@
 package com.akkamelo.api.actor.greet
 
 import akka.actor.{Actor, ActorLogging, Props}
-import com.akkamelo.api.actor.greet.GreeterActor.{ConfigurationSuccess, Configure, SayHello}
+import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 
 object GreeterActor {
   def props: Props = Props(new GreeterActor)
