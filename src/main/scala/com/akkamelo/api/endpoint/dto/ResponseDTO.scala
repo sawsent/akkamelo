@@ -8,6 +8,7 @@ trait ResponseDTOPayload
 
 case class StatementResponseDTOPayload(saldo: BalanceDTO, ultimas_transacoes: List[TransactionDTO]) extends ResponseDTOPayload
 case class TransactionResponseDTOPayload(limite: Int, saldo: Int) extends ResponseDTOPayload
+case class ErrorMessageResponseDTOPayload(message: String) extends ResponseDTOPayload
 
 case class BalanceDTO(total: Int, data_extrato: String, limite: Int)
 case class TransactionDTO(valor: Int, tipo: String, descricao: String, realizada_em: String)

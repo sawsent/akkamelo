@@ -12,12 +12,14 @@ object CustomMarshalling {
   implicit val transactionFormat: RootJsonFormat[TransactionDTO] = jsonFormat4(TransactionDTO)
   implicit val statementResponseFormat: RootJsonFormat[StatementResponseDTOPayload] = jsonFormat2(StatementResponseDTOPayload)
   implicit val transactionResponseFormat: RootJsonFormat[TransactionResponseDTOPayload] = jsonFormat2(TransactionResponseDTOPayload)
+  implicit val errorMessageResponseDTOPayload: RootJsonFormat[ErrorMessageResponseDTOPayload] = jsonFormat1(ErrorMessageResponseDTOPayload)
 
   implicit object ResponseDTOPayloadFormat extends RootJsonFormat[Option[ResponseDTOPayload]] {
     def write(payload: Option[ResponseDTOPayload]): JsValue = payload match {
       case Some(payload) => payload match {
         case s: StatementResponseDTOPayload => s.toJson
         case t: TransactionResponseDTOPayload => t.toJson
+        case e: ErrorMessageResponseDTOPayload => e.toJson
         case _ => serializationError("Unknown ResponseDTOPayload type")
       }
       case None => JsNull

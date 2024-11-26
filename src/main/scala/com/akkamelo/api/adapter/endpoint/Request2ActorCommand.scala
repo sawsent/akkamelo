@@ -5,9 +5,9 @@ import com.akkamelo.api.actor.client.domain.state.{Transaction, TransactionType}
 import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
 
 object Request2ActorCommand {
-  def apply(request: RequestDTO): ClientActorCommand = request match {
-    case TransactionRequestDTO(value, transactionType, description) => ClientAddTransactionCommand(value, stringToTransactionType(transactionType), description)
-    case ClientGetStatementRequestDTO => ClientGetStatementCommand
+  def toActorCommand(id: Int, request: RequestDTO): ClientActorCommand = request match {
+    case TransactionRequestDTO(value, transactionType, description) => ClientAddTransactionCommand(id, value, stringToTransactionType(transactionType), description)
+    case ClientGetStatementRequestDTO => ClientGetStatementCommand(id)
   }
 
   private def stringToTransactionType(transactionType: String): TransactionType = {

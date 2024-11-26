@@ -22,5 +22,4 @@ class PersistentTestActor(persistenceIdval: String) extends PersistentActor with
     case PersistCmd(payload) => persist(payload) { payload => log.info("Persisted " + payload) }
     case _ => log.error("Unknown message received")
   }
-
 }

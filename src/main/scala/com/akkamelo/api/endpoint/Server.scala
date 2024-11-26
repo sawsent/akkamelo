@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.akkamelo.api.actor.client.ClientActor.{ClientActorCommand, ClientActorResponse}
+import com.akkamelo.api.actor.client.ClientActor.ClientActorResponse
 import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.adapter.endpoint.{ActorResponse2ResponseDTO, Request2ActorCommand}
 import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
@@ -16,7 +16,7 @@ import com.akkamelo.api.endpoint.marshalling.CustomMarshalling._
 import com.akkamelo.core.logging.BaseLogging
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.Success
 
 
 object Server {
@@ -56,7 +56,7 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
   }
 
   def handleRequest(clientId: Int, request: RequestDTO): Route = {
-    val command = Request2ActorCommand(request)
+    val command = Request2ActorCommand.toActorCommand(clientId, request)
     val responseFuture: Future[ClientActorResponse] = (clientActorSupervisor ? ApplyCommand(clientId, command)).mapTo[ClientActorResponse]
 
     onComplete(responseFuture) {

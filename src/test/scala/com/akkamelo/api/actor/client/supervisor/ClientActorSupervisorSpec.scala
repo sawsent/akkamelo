@@ -46,7 +46,6 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
       clientActorSupervisor.tell(RegisterClient(clientId, initialBalance, limit), testProbe.ref)
     }
     testProbe.expectMsg(ClientAlreadyExists)
-
   }
 
   it should "forward a command to an existing client actor" in {
@@ -59,7 +58,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
       case ClientRegistered(_) => true
     })
 
-    val command = ClientGetStatementCommand
+    val command = ClientGetStatementCommand(clientId)
 
     // Create equal client actor to the one that will be registered by the supervisor, to get the expected response
     val expectedResponse: ClientStatementResponse = ClientStatementResponse(Client.initialWithId(clientId).getStatement)
@@ -67,7 +66,6 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
 
     testProbe.expectMsg(expectedResponse)
-
   }
 
   it should "reply with NonExistingClientActor if the client actor does not exist" in {
@@ -76,7 +74,7 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
     testProbe.setAutoPilot(echoProbeAutoPilot)
 
     val clientId = 1
-    val command = ClientGetStatementCommand
+    val command = ClientGetStatementCommand(clientId)
 
     EventFilter.warning(pattern = s"Client Actor with id $clientId does not exist.") intercept {
       clientActorSupervisor.tell(ApplyCommand(clientId, command), testProbe.ref)
@@ -84,7 +82,6 @@ class ClientActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSu
 
     testProbe.expectMsg(ClientDoesntExist)
   }
-
 }
 
 object ClientActorSupervisorSpec {

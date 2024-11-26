@@ -52,5 +52,3 @@ object Debit {
 }
 case class Debit(override val value: Int, override val description: String, override val timestamp: LocalDateTime)
   extends Transaction(value, description, TransactionType.DEBIT, timestamp)
-
-
