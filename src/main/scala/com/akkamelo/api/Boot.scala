@@ -4,14 +4,15 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.stream.Materializer
 import akka.util.Timeout
+import com.akkamelo.api.actor.client.ClientActor
 import com.akkamelo.api.actor.client.ClientActor.{ClientActorResponse, ClientAlreadyExists, ClientRegistered, RegisterClient}
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.actor.greet.GreeterActor
 import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 import com.akkamelo.api.actor.persistencetest.PersistentTestActor
 import com.akkamelo.api.endpoint.{PersistenceTestServer, Server}
 import com.akkamelo.core.logging.BaseLogging
+import com.akkamelo.core.supervisor.ActorSupervisor
+import com.akkamelo.core.supervisor.ActorSupervisor.PersistenceIdFactory
 import com.typesafe.config.{Config, ConfigFactory}
 
 import java.util.concurrent.TimeUnit
@@ -46,13 +47,11 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
     val clientNamePrefix = config.getString("actor.client.name.prefix")
     val clientNameSuffix = config.getString("actor.client.name.suffix")
     val clientActorPassivationTimeout = Timeout(config.getLong("actor.client.passivationTimeoutSeconds"), TimeUnit.SECONDS).duration
-    val clientActorRequestTimeout = Timeout(config.getLong("actor.client.requestTimeoutSeconds"), TimeUnit.SECONDS)
 
-    system.actorOf(ClientActorSupervisor.props(
-      (id: Int) => clientNamePrefix + id.toString + clientNameSuffix,
-      clientActorPassivationTimeout,
-      clientActorRequestTimeout
-    ), "client-actor-supervisor")
+    val clientActorPersistenceIdAndNameFactory: PersistenceIdFactory = (id: Int) => clientNamePrefix + id.toString + clientNameSuffix
+    val clientPropsFactory = (persistenceId: String) => ClientActor.props(persistenceId, clientActorPassivationTimeout)
+
+    system.actorOf(ActorSupervisor.props(clientPropsFactory, clientActorPersistenceIdAndNameFactory, clientActorPersistenceIdAndNameFactory), "client-actor-supervisor")
   }
 
   def registerInitialClients(clientSupervisor: ActorRef)(implicit ec: ExecutionContext): Unit = {
@@ -65,7 +64,7 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
       val initialBalance = client.get("initialBalance").unwrapped().asInstanceOf[Int]
       val limit = client.get("limit").unwrapped().asInstanceOf[Int]
 
-      (clientSupervisor ? ApplyCommand(id, RegisterClient(id, limit, initialBalance))).mapTo[ClientActorResponse].onComplete({
+      (clientSupervisor ? RegisterClient(id, limit, initialBalance)).mapTo[ClientActorResponse].onComplete({
         case Success(ClientRegistered(clientId)) => logger.info(s"Client $clientId registered.")
         case Success(ClientAlreadyExists) => logger.warn(s"Client $id already exists.")
         case any => logger.warn(s"Client $id could not be registered. Received: $any")
@@ -83,10 +82,10 @@ class Booter(val system: ActorSystem, val ec: ExecutionContext, val materializer
   }
 
   def startServer(clientActorSupervisor: ActorRef): Server = {
-    val actorResolveTimeout: Timeout = Timeout(config.getLong("actor.client.supervisor.timeoutSeconds"), TimeUnit.SECONDS)
+    val clientActorRequestTimeout: Timeout = Timeout(config.getLong("actor.client.requestTimeoutSeconds"), TimeUnit.SECONDS)
     val host: String = config.getString("server.host")
     val port: Int = config.getInt("server.port")
-    Server.newStartedAt(host, port, clientActorSupervisor)(system, ec, actorResolveTimeout)
+    Server.newStartedAt(host, port, clientActorSupervisor)(system, ec, clientActorRequestTimeout)
   }
 
   def greet(): Unit = {

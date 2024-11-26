@@ -7,7 +7,6 @@ import akka.testkit.TestProbe
 import akka.util.Timeout
 import com.akkamelo.api.actor.client.ClientActor._
 import com.akkamelo.api.actor.client.domain.state.{Client, TransactionType}
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.adapter.endpoint.ActorResponse2ResponseDTO
 import com.akkamelo.api.endpoint.Server
 import com.akkamelo.api.endpoint.dto.TransactionRequestDTO

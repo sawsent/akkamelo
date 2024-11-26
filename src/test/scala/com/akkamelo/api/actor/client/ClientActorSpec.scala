@@ -101,8 +101,8 @@ object ClientActorSpec {
   {
     val client = Client.initial.copy(id = clientId, limit = limit)
     val clientActorNameAndPersistenceId = CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX
-    val clientActorRef = system.actorOf(ClientActor.props(CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX,
-      addTransactionHandler, assignClientHandler, converter, clientActorPassivationTimeout), clientActorNameAndPersistenceId)
+    val clientActorRef = system.actorOf(ClientActor.props(CLIENT_NAME_PREFIX + clientId + CLIENT_NAME_SUFFIX, clientActorPassivationTimeout,
+      addTransactionHandler, assignClientHandler, converter), clientActorNameAndPersistenceId)
     (ClientState(client), clientActorRef)
   }
 }

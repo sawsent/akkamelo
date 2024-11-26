@@ -34,10 +34,11 @@ object ClientActor {
   case object ClientAlreadyExists extends ClientActorResponse
 
   def props(persistenceId: String,
-            addTransactionHandler: ClientAddTransactionHandler,
-            clientAssignClientHandler: ClientAssignClientHandler,
-            converter: ClientActorCommand2ActorEvent,
-            passivationTimeout: FiniteDuration):
+            passivationTimeout: FiniteDuration,
+            addTransactionHandler: ClientAddTransactionHandler = ClientAddTransactionHandler(),
+            clientAssignClientHandler: ClientAssignClientHandler = ClientAssignClientHandler(),
+            converter: ClientActorCommand2ActorEvent = ClientActorCommand2ActorEvent()
+            ):
   Props = Props(new ClientActor(persistenceId, addTransactionHandler, clientAssignClientHandler, converter, passivationTimeout))
 }
 
