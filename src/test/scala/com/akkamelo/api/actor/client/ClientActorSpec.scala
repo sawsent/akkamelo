@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import com.akkamelo.api.actor.client.ClientActor._
 import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
 import com.akkamelo.api.actor.client.domain.state._
-import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
+import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientRegisterClientHandler}
 import com.akkamelo.api.actor.common.BaseActorSpec
 import org.mockito.MockitoSugar.{mock, when}
 
@@ -96,7 +96,7 @@ object ClientActorSpec {
                   clientId: Int,
                   limit: Int = 0,
                   addTransactionHandler: ClientAddTransactionHandler = ClientAddTransactionHandler(),
-                  assignClientHandler: ClientAssignClientHandler = ClientAssignClientHandler(),
+                  assignClientHandler: ClientRegisterClientHandler = ClientRegisterClientHandler(),
                   converter: ClientActorCommand2ActorEvent = ClientActorCommand2ActorEvent()): (ClientState, ActorRef) =
   {
     val client = Client.initial.copy(id = clientId, limit = limit)
