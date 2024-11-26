@@ -8,7 +8,7 @@ import org.scalatest.matchers.should
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 
-class ClientAddTransactionHandlerSpec  extends AnyFlatSpecLike with TableDrivenPropertyChecks with should.Matchers {
+class ClientAddTransactionHandlerSpec extends AnyFlatSpecLike with TableDrivenPropertyChecks with should.Matchers {
 
   "TransactionHandle" should "apply transactions to Client state" in {
 
