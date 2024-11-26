@@ -92,13 +92,8 @@ class ActorSupervisorSpec extends BaseActorSpec(ActorSystem("ClientActorSupervis
     EventFilter.warning().intercept {
       supervisor.tell("this should make a warning instead", senderProbe.ref)
     }
-
     senderProbe.expectNoMessage()
   }
-
-
-
-
 }
 
 object ActorSupervisorSpec {
