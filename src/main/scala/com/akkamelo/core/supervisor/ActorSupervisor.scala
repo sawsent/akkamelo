@@ -23,13 +23,17 @@ class ActorSupervisor[C <: ActorCommand](val getPersistenceId: PersistenceIdFact
 
   override def receive: Receive = {
     case command: C @unchecked => createOrRecoverClientActor(command.entityId).forward(command)
-    case any =>                   log.error(s"Received unknown message: $any")
+    case any =>                   log.warning(s"Received unknown message: $any")
   }
 
   private def createOrRecoverClientActor(entityId: Int): ActorRef = {
-    context.child(getPersistenceId(entityId)) match {
-      case Some(childActorRef) => childActorRef
-      case None => context.actorOf(childPropsFactory(getPersistenceId(entityId)), getActorName(entityId))
+    context.child(getActorName(entityId)) match {
+      case Some(childActorRef) =>
+        log.info(s"Found actor reference in memory for entityId: $entityId")
+        childActorRef
+      case None =>
+        log.info(s"Creating actor reference for entityId: $entityId")
+        context.actorOf(childPropsFactory(getPersistenceId(entityId)), getActorName(entityId))
     }
   }
 }
