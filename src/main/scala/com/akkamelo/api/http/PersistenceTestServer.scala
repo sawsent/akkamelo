@@ -1,4 +1,4 @@
-package com.akkamelo.api.endpoint
+package com.akkamelo.api.http
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http

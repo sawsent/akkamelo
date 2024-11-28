@@ -1,4 +1,4 @@
-package com.akkamelo.api.endpoint
+package com.akkamelo.api.http
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
@@ -10,8 +10,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.akkamelo.api.actor.client.ClientActor.ClientActorResponse
 import com.akkamelo.api.adapter.endpoint.{ActorResponse2ResponseDTO, Request2ActorCommand}
-import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
-import com.akkamelo.api.endpoint.marshalling.CustomMarshalling._
+import com.akkamelo.api.http.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
+import com.akkamelo.api.http.marshalling.CustomMarshalling._
 import com.akkamelo.core.logging.BaseLogging
 
 import scala.concurrent.{ExecutionContext, Future}

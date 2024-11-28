@@ -9,7 +9,7 @@ import com.akkamelo.api.actor.client.ClientActor.{ClientActorResponse, ClientAlr
 import com.akkamelo.api.actor.greet.GreeterActor
 import com.akkamelo.api.actor.greet.GreeterActor.{Configure, SayHello}
 import com.akkamelo.api.actor.persistencetest.PersistentTestActor
-import com.akkamelo.api.endpoint.{PersistenceTestServer, Server}
+import com.akkamelo.api.http.{PersistenceTestServer, Server}
 import com.akkamelo.core.logging.BaseLogging
 import com.akkamelo.core.supervisor.ActorSupervisor
 import com.akkamelo.core.supervisor.ActorSupervisor.PersistenceIdFactory

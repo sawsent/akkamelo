@@ -1,6 +1,6 @@
-package com.akkamelo.api.endpoint.marshalling
+package com.akkamelo.api.http.marshalling
 
-import com.akkamelo.api.endpoint.dto._
+import com.akkamelo.api.http.dto._
 import spray.json.DefaultJsonProtocol._
 import spray.json.{JsNull, JsValue, RootJsonFormat, deserializationError, enrichAny, serializationError}
 

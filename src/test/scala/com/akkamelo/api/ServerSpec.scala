@@ -8,9 +8,9 @@ import akka.util.Timeout
 import com.akkamelo.api.actor.client.ClientActor._
 import com.akkamelo.api.actor.client.domain.state.{Client, TransactionType}
 import com.akkamelo.api.adapter.endpoint.ActorResponse2ResponseDTO
-import com.akkamelo.api.endpoint.Server
-import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, TransactionRequestDTO}
-import com.akkamelo.api.endpoint.marshalling.CustomMarshalling._
+import com.akkamelo.api.http.Server
+import com.akkamelo.api.http.dto.{ClientGetStatementRequestDTO, TransactionRequestDTO}
+import com.akkamelo.api.http.marshalling.CustomMarshalling._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
