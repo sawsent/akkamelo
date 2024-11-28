@@ -1,101 +1,141 @@
-
 package com.akkamelo.api.actor.client
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.TestProbe
 import com.akkamelo.api.actor.client.ClientActor._
-import com.akkamelo.api.actor.client.domain.state.{ClientActorState, TransactionType}
+import com.akkamelo.api.actor.client.ClientActorSpec.{AddTransactionTestCommand, GetStatementTestCommand, RegisterClientTestCommand, TEST_ID, TestGetStateCommand, resetActorWithState, resetActorWithoutState, testActorPassivationTimeout}
+import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
+import com.akkamelo.api.actor.client.domain.state._
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException
-import com.akkamelo.api.actor.client.handler.ClientAddTransactionHandler
+import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientRegisterClientHandler}
 import com.akkamelo.api.actor.common.BaseActorSpec
 import org.mockito.MockitoSugar.{mock, when}
-import org.scalatest.concurrent.Eventually
 import org.scalatest.time.SpanSugar._
-import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.concurrent.duration.FiniteDuration
 
 class ClientActorSpec extends BaseActorSpec(ActorSystem("ClientActorSpec")) {
 
   // TODO: mock handlers
-  "A ClientActor" should "reply with the balance and limit after adding a transaction" in {
+  "A ClientActor with State" should "reply with the balance and limit after adding a transaction" in {
     val probe = TestProbe()
-    val actor = system.actorOf(ClientActor.props("test-client-1", 10.seconds))
 
-    val initialLimit = 5000
-    val initialBalance = 2000
-    probe.send(actor, RegisterClient(1, initialLimit, initialBalance))
-    probe.expectMsg(ClientRegistered(1))
+    val testClientMock = mock[Client]
+    val actor: ActorRef = resetActorWithState("test-client-1", transactionHandlerReturn = () => ClientState(testClientMock), testClientMock)
+    when(testClientMock.id).thenReturn(TEST_ID)
+    when(testClientMock.balance).thenReturn(0)
+    when(testClientMock.limit).thenReturn(0)
 
-    val transactionValue = 500
-    probe.send(actor, ClientAddTransactionCommand(1, transactionValue, TransactionType.DEBIT, "Purchase"))
-    probe.expectMsg(ClientBalanceAndLimitResponse(initialBalance - transactionValue, initialLimit))
-
-    probe.send(actor, ClientGetStatementCommand(1))
-    val response = probe.expectMsgType[ClientStatementResponse]
-    assert(response.statement.lastTransactions.size == 1)
+    probe.send(actor, AddTransactionTestCommand)
+    probe.expectMsg(ClientBalanceAndLimitResponse(testClientMock.balance, testClientMock.limit))
   }
 
   it should "reply with the statement when requested" in {
     val probe = TestProbe()
-    val actor = system.actorOf(ClientActor.props("test-client-2", 10.seconds))
+    val testClientMock = mock[Client]
+    val actor = resetActorWithState("test-client-2", () => ClientState(testClientMock), testClientMock)
+    when(testClientMock.getStatement).thenReturn(mock[Statement])
 
-    val initialLimit = 3000
-    val initialBalance = 1000
-    probe.send(actor, RegisterClient(2, initialLimit, initialBalance))
-    probe.expectMsg(ClientRegistered(2))
+    probe.send(actor, GetStatementTestCommand)
+    probe.expectMsg(ClientStatementResponse(testClientMock.getStatement))
 
-    probe.send(actor, ClientAddTransactionCommand(2, 200, TransactionType.CREDIT, "Refund"))
-    probe.expectMsgType[ClientBalanceAndLimitResponse]
-    probe.send(actor, ClientAddTransactionCommand(2, 50, TransactionType.DEBIT, "Snack"))
-    probe.expectMsgType[ClientBalanceAndLimitResponse]
-
-    probe.send(actor, ClientGetStatementCommand(2))
-    val response = probe.expectMsgType[ClientStatementResponse]
-    assert(response.statement.lastTransactions.size == 2)
-    assert(response.statement.lastTransactions.exists(_.description == "Refund"))
-    assert(response.statement.lastTransactions.exists(_.description == "Snack"))
   }
 
   it should "reply with an ActorProcessingFailure when the Transaction doesn't go through and ClientState should stay the same" in {
     val probe = TestProbe()
-    val mockedTransactionHandler = mock[ClientAddTransactionHandler]
-    when(mockedTransactionHandler.handle).thenReturn({
-      case (_, _) => throw InvalidTransactionException("Transaction failed")
-    })
+    val testClientMock = mock[Client]
+    val actor = resetActorWithState("test-client-3", () => throw InvalidTransactionException("test"), testClientMock)
 
-    val actor = system.actorOf(ClientActor.props("test-client-3", 10.seconds, addTransactionHandler = mockedTransactionHandler))
-
-    val initialLimit = 1000
-    val initialBalance = 100
-    probe.send(actor, RegisterClient(3, initialLimit, initialBalance))
-    probe.expectMsg(ClientRegistered(3))
-
-    probe.send(actor, ClientAddTransactionCommand(3, 200, TransactionType.DEBIT, "Overdraft"))
+    probe.send(actor, AddTransactionTestCommand)
     probe.expectMsg(ClientActorUnprocessableEntity)
 
-    probe.send(actor, ClientGetStatementCommand(3))
-    val response = probe.expectMsgType[ClientStatementResponse]
-    assert(response.statement.lastTransactions.isEmpty)
+    probe.send(actor, TestGetStateCommand)
+    probe.expectMsg(ClientState(testClientMock))
   }
 
-  it should "reply with an ActorNotFound when the ClientState doesn't exist" in {
+  it should "reply with ClientAlreadyExists when trying to register a client and the state shouldn't change" in {
     val probe = TestProbe()
-    val actor = system.actorOf(ClientActor.props("test-client-4", 10.seconds))
+    val testClientMock = mock[Client]
+    val actor = resetActorWithState("test-client-4", () => throw new RuntimeException("Should not have used the handler"), testClientMock)
 
-    probe.send(actor, ClientGetStatementCommand(4))
-    probe.expectMsg(ClientDoesntExist)
-
-    probe.send(actor, ClientAddTransactionCommand(4, 100, TransactionType.CREDIT, "Bonus"))
-    probe.expectMsg(ClientDoesntExist)
-  }
-
-  it should "reply with an ActorAlreadyExists when the ClientState already exists" in {
-    val probe = TestProbe()
-    val actor = system.actorOf(ClientActor.props("test-client-5", 10.seconds))
-
-    probe.send(actor, RegisterClient(5, 2000, 500))
-    probe.expectMsg(ClientRegistered(5))
-
-    probe.send(actor, RegisterClient(5, 1000, 100))
+    probe.send(actor, RegisterClientTestCommand)
     probe.expectMsg(ClientAlreadyExists)
+
+    probe.send(actor, TestGetStateCommand)
+    probe.expectMsg(ClientState(testClientMock))
+  }
+
+  "A ClientActor without state" should "reply with an ActorNotFound when it receives a GetStatementCommand" in {
+    val probe = TestProbe()
+    val actor = resetActorWithoutState("test-client-5", () => ClientNoState, () => ClientNoState)
+
+    probe.send(actor, GetStatementTestCommand)
+    probe.expectMsg(ClientDoesntExist)
+
+  }
+
+  it should "reply with an ActorNotFound when it receives a AddTransactionCommand" in {
+    val probe = TestProbe()
+    val actor = resetActorWithoutState("test-client-6", () => ClientNoState, () => ClientNoState)
+
+    probe.send(actor, AddTransactionTestCommand)
+    probe.expectMsg(ClientDoesntExist)
+  }
+}
+
+object ClientActorSpec {
+
+  class TestClientActor(persistenceId: String,
+                        passivationTimeout: FiniteDuration,
+                        override val addTransactionHandler: ClientAddTransactionHandler,
+                        override val clientAssignClientHandler: ClientRegisterClientHandler)
+    extends ClientActor(persistenceId, addTransactionHandler, clientAssignClientHandler, ClientActorCommand2ActorEvent(), passivationTimeout) {
+
+    override def unhandledCommand(state: ClientActorState): Receive = {
+      case TestGetStateCommand => sender() ! state
+    }
+  }
+
+  case object TestGetStateCommand
+
+  case object TestClientState extends ClientActorState
+  case class TestCommand(entityId: Int = 1) extends ClientActorCommand
+  val TEST_ID = 1
+  val testActorPassivationTimeout = 10.seconds
+  val AddTransactionTestCommand: ClientAddTransactionCommand = ClientAddTransactionCommand(TEST_ID, 0, TransactionType.NO_TYPE, "")
+  val RegisterClientTestCommand: RegisterClient = RegisterClient(TEST_ID, 0, 0)
+  val GetStatementTestCommand: ClientGetStatementCommand = ClientGetStatementCommand(TEST_ID)
+
+  def resetActorWithoutState(persistenceId: String,
+                             transactionHandlerReturn: () => ClientActorState,
+                             registerClientHandlerReturn: () => ClientActorState)(implicit system: ActorSystem): ActorRef = {
+
+    val registerClientHandler: ClientRegisterClientHandler = mock[ClientRegisterClientHandler]
+    when(registerClientHandler.handle).thenReturn({
+      case (_, cmd) if cmd == RegisterClientTestCommand => registerClientHandlerReturn()
+    })
+
+    val transactionHandlerMock = mock[ClientAddTransactionHandler]
+    when(transactionHandlerMock.handle).thenReturn({
+      case (_, cmd) if cmd == AddTransactionTestCommand => transactionHandlerReturn()
+    })
+
+    system.actorOf(Props(new TestClientActor(persistenceId, testActorPassivationTimeout, transactionHandlerMock, registerClientHandler)))
+  }
+  def resetActorWithState(persistenceId: String, transactionHandlerReturn: () => ClientActorState, clientMock: Client)(implicit system: ActorSystem): ActorRef = {
+
+    val registerClientHandler: ClientRegisterClientHandler = mock[ClientRegisterClientHandler]
+    when(registerClientHandler.handle).thenReturn({
+      case (_, cmd) if cmd == RegisterClientTestCommand => ClientState(clientMock)
+    })
+
+    val transactionHandlerMock = mock[ClientAddTransactionHandler]
+    when(transactionHandlerMock.handle).thenReturn({
+      case (_, cmd) if cmd == AddTransactionTestCommand => transactionHandlerReturn()
+    })
+    val actor: ActorRef = system.actorOf(Props(new TestClientActor(persistenceId, testActorPassivationTimeout, transactionHandlerMock, registerClientHandler)))
+    val registerProbe = TestProbe()
+    registerProbe.send(actor, RegisterClientTestCommand)
+    actor
   }
 }
