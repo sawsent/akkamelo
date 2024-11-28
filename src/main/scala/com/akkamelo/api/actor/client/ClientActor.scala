@@ -9,6 +9,7 @@ import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, Clien
 import com.akkamelo.core.actor.BaseActor.{ActorCommand, ActorEvent}
 
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 object ClientActor {
   // CommandRegion
@@ -80,12 +81,13 @@ class ClientActor(persistenceIdentity: String,
   private def handleClientCommands(state: ClientState): Receive = {
     case cmd: ClientAddTransactionCommand =>
       log.info(s"Received a ClientAddTransactionCommand: $cmd")
-      try {
-        val updatedState = addTransactionHandler.handle(state, cmd).toFullState
-        val event = converter.toActorEvent(cmd)
-        doPersist(event)(changeStateAndRespond(updatedState)(ClientBalanceAndLimitResponse(updatedState.client.balance, updatedState.client.limit)))
-      } catch {
-        case e: InvalidTransactionException =>
+      val maybeState = Try(addTransactionHandler.handle(state, cmd).toFullState).toEither
+
+      maybeState match {
+        case Right(updatedState) =>
+          val response = ClientBalanceAndLimitResponse(updatedState.client.balance, updatedState.client.limit)
+          doPersist(converter.toActorEvent(cmd))(changeStateAndRespond(updatedState, response))
+        case Left(e: InvalidTransactionException) =>
           log.info(s"Transaction failure: ${e.getMessage}")
           sender() ! ClientActorUnprocessableEntity
       }
@@ -102,12 +104,14 @@ class ClientActor(persistenceIdentity: String,
   private def handleNoStateCommands: Receive = {
     case cmd: RegisterClient =>
       log.info(s"Received an AssignClientCommand: $cmd")
-      try {
-        val state = clientAssignClientHandler.handle(ClientNoState, cmd).toFullState
-        val event = converter.toActorEvent(cmd)
-        doPersist(event)(changeStateAndRespond(state)(ClientRegistered(state.client.id)))
-      } catch {
-        case _: Exception =>
+
+      val maybeState = Try(clientAssignClientHandler.handle(ClientNoState, cmd).toFullState).toEither
+      maybeState match {
+        case Right(updatedState) =>
+          val response = ClientRegistered(updatedState.client.id)
+          doPersist(converter.toActorEvent(cmd))(changeStateAndRespond(updatedState, response))
+
+        case Left(e: Exception) =>
           log.info(s"Client ${cmd.entityId} already exists. Ignoring.")
           sender() ! ClientAlreadyExists
       }
@@ -117,17 +121,20 @@ class ClientActor(persistenceIdentity: String,
       sender() ! ClientDoesntExist
   }
 
-  private def doPersist(evt: ClientActorEvent)(doAfter: () => Unit): Unit = {
+  private def doPersist(evt: ClientActorEvent)(doAfter: AfterPersistence): Unit = {
     persist(evt) { _ =>
       log.info(s"Persisted $evt")
       doAfter()
     }
   }
 
-  private def changeState(newState: ClientActorState): () => Unit = () => become(receive(newState))
-  private def changeStateAndRespond(newState: ClientActorState)(response: ClientActorResponse): () => Unit = () => {
-    become(receive(newState))
-    sender() ! response
+  type AfterPersistence = () => Unit
+  private def NOTHING: AfterPersistence = () => ()
+  private def changeState(newState: ClientActorState): AfterPersistence = () => become(receive(newState))
+  private def respond(response: ClientActorResponse): AfterPersistence = () => sender() ! response
+  private def changeStateAndRespond(state: ClientState, response: ClientActorResponse): AfterPersistence = () => {
+    changeState(state)
+    respond(response)
   }
 
   override def receiveRecover: Receive = {
