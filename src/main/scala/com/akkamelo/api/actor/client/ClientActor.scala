@@ -62,7 +62,7 @@ class ClientActor(persistenceIdentity: String,
       stop(self)
   }
 
-  private def unhandledCommand(state: ClientActorState): Receive = {
+  protected def unhandledCommand(state: ClientActorState): Receive = {
     case any =>
       log.warning(s"Received an unhandled message: $any, with state: $state")
       sender() ! ClientActorUnprocessableEntity
