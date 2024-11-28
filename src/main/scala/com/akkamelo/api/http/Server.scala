@@ -1,4 +1,4 @@
-package com.akkamelo.api.endpoint
+package com.akkamelo.api.http
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
@@ -9,10 +9,9 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.akkamelo.api.actor.client.ClientActor.ClientActorResponse
-import com.akkamelo.api.actor.client.supervisor.ClientActorSupervisor.ApplyCommand
 import com.akkamelo.api.adapter.endpoint.{ActorResponse2ResponseDTO, Request2ActorCommand}
-import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
-import com.akkamelo.api.endpoint.marshalling.CustomMarshalling._
+import com.akkamelo.api.http.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
+import com.akkamelo.api.http.marshalling.CustomMarshalling._
 import com.akkamelo.core.logging.BaseLogging
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -20,10 +19,13 @@ import scala.util.Success
 
 
 object Server {
-  def newStartedAt(host: String, port: Int, clientActorResolver: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout): Server = new Server(host, port, clientActorResolver)
+  def newStartedAt(host: String, port: Int, clientActorSupervisorRef: ActorRef)
+                  (implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout): Server = new Server(host, port, clientActorSupervisorRef)
 }
 
-class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit system: ActorSystem, ec: ExecutionContext, actorResolveTimeout: Timeout) extends BaseLogging {
+class Server(host: String, port: Int, clientActorSupervisor: ActorRef)
+            (implicit system: ActorSystem, ec: ExecutionContext, actorRequestTimeout: Timeout) extends BaseLogging {
+
   val route: Route = {
     concat(
       path("health") {
@@ -57,7 +59,7 @@ class Server(host: String, port: Int, clientActorSupervisor: ActorRef)(implicit 
 
   def handleRequest(clientId: Int, request: RequestDTO): Route = {
     val command = Request2ActorCommand.toActorCommand(clientId, request)
-    val responseFuture: Future[ClientActorResponse] = (clientActorSupervisor ? ApplyCommand(clientId, command)).mapTo[ClientActorResponse]
+    val responseFuture: Future[ClientActorResponse] = (clientActorSupervisor ? command).mapTo[ClientActorResponse]
 
     onComplete(responseFuture) {
       case Success(response: ClientActorResponse) =>

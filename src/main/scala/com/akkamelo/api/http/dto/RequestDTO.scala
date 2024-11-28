@@ -1,4 +1,4 @@
-package com.akkamelo.api.endpoint.dto
+package com.akkamelo.api.http.dto
 
 trait RequestDTO
 

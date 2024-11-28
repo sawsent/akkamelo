@@ -2,7 +2,7 @@ package com.akkamelo.api.adapter.endpoint
 
 import com.akkamelo.api.actor.client.ClientActor.{ClientActorCommand, ClientAddTransactionCommand, ClientGetStatementCommand}
 import com.akkamelo.api.actor.client.domain.state.{Transaction, TransactionType}
-import com.akkamelo.api.endpoint.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
+import com.akkamelo.api.http.dto.{ClientGetStatementRequestDTO, RequestDTO, TransactionRequestDTO}
 
 object Request2ActorCommand {
   def toActorCommand(id: Int, request: RequestDTO): ClientActorCommand = request match {

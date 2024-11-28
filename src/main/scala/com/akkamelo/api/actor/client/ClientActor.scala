@@ -5,7 +5,7 @@ import akka.persistence.{PersistentActor, RecoveryCompleted}
 import com.akkamelo.api.actor.client.converter.ClientActorCommand2ActorEvent
 import com.akkamelo.api.actor.client.domain.state._
 import com.akkamelo.api.actor.client.exception.InvalidTransactionException
-import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientAssignClientHandler}
+import com.akkamelo.api.actor.client.handler.{ClientAddTransactionHandler, ClientRegisterClientHandler}
 import com.akkamelo.core.actor.BaseActor.{ActorCommand, ActorEvent}
 
 import scala.concurrent.duration.FiniteDuration
@@ -34,16 +34,17 @@ object ClientActor {
   case object ClientAlreadyExists extends ClientActorResponse
 
   def props(persistenceId: String,
-            addTransactionHandler: ClientAddTransactionHandler,
-            clientAssignClientHandler: ClientAssignClientHandler,
-            converter: ClientActorCommand2ActorEvent,
-            passivationTimeout: FiniteDuration):
+            passivationTimeout: FiniteDuration,
+            addTransactionHandler: ClientAddTransactionHandler = ClientAddTransactionHandler(),
+            clientAssignClientHandler: ClientRegisterClientHandler = ClientRegisterClientHandler(),
+            converter: ClientActorCommand2ActorEvent = ClientActorCommand2ActorEvent()
+            ):
   Props = Props(new ClientActor(persistenceId, addTransactionHandler, clientAssignClientHandler, converter, passivationTimeout))
 }
 
 class ClientActor(persistenceIdentity: String,
                   val addTransactionHandler: ClientAddTransactionHandler,
-                  val clientAssignClientHandler: ClientAssignClientHandler,
+                  val clientAssignClientHandler: ClientRegisterClientHandler,
                   val converter: ClientActorCommand2ActorEvent,
                   val passivationTimeout: FiniteDuration) extends PersistentActor with ActorLogging
 {
