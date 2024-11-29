@@ -11,4 +11,6 @@ This will run the tests and generate a report in the `target/gatling` directory.
 
 You can also run from your IDE if you wish, running the `GatlingRunner` class.
 
+Keep in mind all the tests need to compile.
+
 Check pom.xml for more information on the profile.

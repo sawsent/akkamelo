@@ -7,12 +7,12 @@ import spray.json.{JsNull, JsValue, RootJsonFormat, deserializationError, enrich
 object CustomMarshalling {
 
   implicit val transactionRequestFormat: RootJsonFormat[TransactionRequestDTO] = jsonFormat3(TransactionRequestDTO)
-  implicit val registerRequestFormat: RootJsonFormat[ClientRegisterRequestDTO] = jsonFormat3(ClientRegisterRequestDTO)
+  implicit val registerRequestFormat: RootJsonFormat[ClientRegisterRequestDTO] = jsonFormat2(ClientRegisterRequestDTO)
 
   implicit val balanceFormat: RootJsonFormat[BalanceDTO] = jsonFormat3(BalanceDTO)
   implicit val transactionFormat: RootJsonFormat[TransactionDTO] = jsonFormat4(TransactionDTO)
   implicit val statementResponseFormat: RootJsonFormat[StatementResponseDTOPayload] = jsonFormat2(StatementResponseDTOPayload)
-  implicit val clientRegisterResponseFormat: RootJsonFormat[ClientRegisterResponseDTOPayload] = jsonFormat4(ClientRegisterResponseDTOPayload)
+  implicit val clientRegisterResponseFormat: RootJsonFormat[ClientRegisterResponseDTOPayload] = jsonFormat3(ClientRegisterResponseDTOPayload)
   implicit val transactionResponseFormat: RootJsonFormat[TransactionResponseDTOPayload] = jsonFormat2(TransactionResponseDTOPayload)
   implicit val errorMessageResponseDTOPayload: RootJsonFormat[ErrorMessageResponseDTOPayload] = jsonFormat1(ErrorMessageResponseDTOPayload)
 

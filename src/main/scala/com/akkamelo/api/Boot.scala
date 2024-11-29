@@ -1,11 +1,8 @@
 package com.akkamelo.api
 
-import akka.actor.ActorSystem
 import com.akkamelo.api.http.{ClientService, Server}
 
 object Boot extends App {
-  implicit val system = ActorSystem("akkamelo")
-  implicit val ec = system.dispatcher
   println("Starting Akkamelo")
 
   val host = Config.server("host").asInstanceOf[String]

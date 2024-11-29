@@ -13,13 +13,6 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-actor_2.13</artifactId>
-            <version>2.6.20</version>
-        </dependency>
-
-
 
         <!-- Dependencies for running Gatling testSuite and akka http -->
         <dependency>
@@ -29,13 +22,13 @@
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-http_2.13</artifactId>
+            <artifactId>akka-http-testkit_2.13</artifactId>
             <version>10.2.7</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-http-testkit_2.13</artifactId>
-            <version>10.2.7</version>
+            <artifactId>akka-stream_2.13</artifactId>
+            <version>2.6.20</version>
         </dependency>
         <dependency>
             <groupId>io.spray</groupId>
