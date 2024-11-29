@@ -4,6 +4,45 @@ This file outlines the endpoints, request formats, and response formats used in 
 
 ---
 
+## Registration Endpoint
+
+### **Request**
+`POST /clientes/[id]/registar`
+```json
+{
+  "saldo_inicial": 1000,
+  "limite": 100000
+}
+```
+
+Where:
+- `[id]` (URL) is an integer representing the client ID.
+- `saldo_inicial` is an integer representing the initial balance in cents
+- `limite` is an integer representing the credit limit in cents
+
+All fields are required.
+
+### **Response**
+
+`HTTP 200 OK`
+```json
+{
+  "id": 1,
+  "saldo": 1000,
+  "limite": 100000
+}
+```
+
+Where:
+- `id` is the client ID.
+- `saldo` is the initial balance.
+- `limite` is the credit limit.
+
+### **Rules**
+- If the client ID already exists, return `HTTP 409 Conflict`.
+- If the payload fails to meet the specifications (e.g., incorrect `saldo_inicial` or `limite`), return `HTTP 422 Unprocessable Entity`.
+- If the initial balance would conflict with the credit limit, return `HTTP 422 Unprocessable Entity`. 
+
 ## Transactions Endpoint
 
 ### **Request**
@@ -11,9 +50,9 @@ This file outlines the endpoints, request formats, and response formats used in 
 `POST /clientes/[id]/transacoes`
 ```json
 {
-    "valor": 1000,
-    "tipo" : "c",
-    "descricao" : "descricao"
+  "valor": 1000,
+  "tipo" : "c",
+  "descricao" : "descricao"
 }
 ```
 
@@ -30,8 +69,8 @@ All fields are required.
 `HTTP 200 OK`
 ```json
 {
-    "limite" : 100000,
-    "saldo" : -9098
+  "limite" : 100000,
+  "saldo" : -9098
 }
 ```
 
@@ -84,14 +123,14 @@ Where:
 
 Where:
 - `saldo` contains:
-    - `total`: Current balance.
-    - `data_extrato`: Timestamp when the statement was generated.
-    - `limite`: The client’s credit limit.
+  - `total`: Current balance.
+  - `data_extrato`: Timestamp when the statement was generated.
+  - `limite`: The client’s credit limit.
 - `ultimas_transacoes` is an array of up to 10 most recent transactions, ordered by `realizada_em`, containing:
-    - `valor`: Transaction amount.
-    - `tipo`: Transaction type (`c` for credit, `d` for debit).
-    - `descricao`: Description from the transaction.
-    - `realizada_em`: Timestamp of the transaction.
+  - `valor`: Transaction amount.
+  - `tipo`: Transaction type (`c` for credit, `d` for debit).
+  - `descricao`: Description from the transaction.
+  - `realizada_em`: Timestamp of the transaction.
 
 ### **Rules**
 - If the client ID does not exist, return `HTTP 404 Not Found`.
@@ -107,4 +146,4 @@ For test only a few Clients must exist. So, They must exist at our App first tim
 | 4 | 10000000 | 0
 | 5 | 500000   | 0
 
-Obs.: Please don't creat a client with id 6 this will broke the tests!
+Obs.: Please don't creat a client with id 6 this will break the tests!

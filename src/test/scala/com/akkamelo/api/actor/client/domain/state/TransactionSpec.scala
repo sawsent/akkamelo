@@ -1,11 +1,11 @@
 package com.akkamelo.api.actor.client.domain.state
 
-import com.akkamelo.api.actor.client.exception.InvalidTransactionException
+import com.akkamelo.api.actor.client.domain.exception.InvalidTransactionException
 import org.scalatest.flatspec.AnyFlatSpec
 
 class TransactionSpec extends AnyFlatSpec {
 
-  "A Transaction" should "be a Debit or a Credit" in {
+  "A Debit" should "be a Transaction" in {
     val debit = Debit(100,"desc")
     val debitIsATransaction = debit match {
       case t: Transaction => true
@@ -13,6 +13,9 @@ class TransactionSpec extends AnyFlatSpec {
     }
     assert(debitIsATransaction)
 
+  }
+
+  "A Credit" should "be a Transaction" in {
     val credit = Credit(100,"desc")
     val creditIsATransaction = credit match {
       case t: Transaction => true
