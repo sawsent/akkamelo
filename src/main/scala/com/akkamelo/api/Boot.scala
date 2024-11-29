@@ -1,7 +1,7 @@
 package com.akkamelo.api
 
 import akka.actor.ActorSystem
-import com.akkamelo.api.http.{Server, ClientService}
+import com.akkamelo.api.http.{ClientService, Server}
 
 object Boot extends App {
   implicit val system = ActorSystem("akkamelo")
