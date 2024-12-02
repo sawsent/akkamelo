@@ -28,7 +28,7 @@ flowchart TD
 
 ## Functional Requirements 
 
-[Here](./docs/STATUS-TESTES.md).
+[Here](./docs/api-contracts.md).
 
 ## Technologies Used
 
